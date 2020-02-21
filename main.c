@@ -11,7 +11,7 @@
 #include <gauche.h>
 #include <gauche/static.h>
 
-#define DEFAULT_PORT 2222
+#define DEFAULT_PORT 2225
 #define DEFAULT_BACKLOG 10
 
 uv_loop_t *loop;
