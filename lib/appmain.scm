@@ -66,7 +66,7 @@
             (aria-controls "navbarsExampleDefault"))
            (span (@ (class "navbar-toggler-icon"))))
           (div (@ (id "navbarsExampleDefault") (class "collapse navbar-collapse"))
-               (ul (@ (class "navbar-nav mr-auto"))
+               (ul (@ (class "navbar-nav"))
                    (li (@ (class "nav-item active"))
                        (a (@ (href "#") (class "nav-link"))
                           "Home " (span (@ (class "sr-only")) "(current)")))
@@ -88,9 +88,11 @@
                             (a (@ (href "#") (class "dropdown-item")) "Another action")
                             (a (@ (href "#") (class "dropdown-item")) "Something else here"))))
                (form
-                (@ (class "form-inline my-2 my-lg-0"))
+                (@ (class "form-inline my-2 my-lg-0")
+                   (action "/"))
                 (input (@ (type "text") (placeholder "Search") (class "form-control mr-sm-2")
-                          (aria-label "Search")))
+                          (aria-label "Search")
+                          (name "q")))
                 (button (@ (type "submit") (class "btn btn-secondary my-2 my-sm-0"))
                         "Search"))))
      (main
@@ -127,30 +129,34 @@
                         (x->string ch))))
        result))))
 
+(define (home-page await search-key)
+  (if (> (string-length search-key) 0)
+      (await (lambda ()
+               (thread-sleep! 3)
+               `(p ,#"Search requestd: ~search-key")))
+      `(p "Hey!")
+      )
+  )
+
 (define-http-handler "/"
   (^[req app]
-    (violet-async
-     (^[await]
-       (let* ((count (let ((n (await get-random))) (if (integer? n) (modulo n 5) 1)))
-              (nums (let loop ((count count) (dest ()))
-                      (if (zero? count)
-                          dest
-                          (loop (- count 1)
-                                (cons (await get-random) dest))))))
-         (respond/ok req (cons "<!DOCTYPE html>"
-                               (sxml:sxml->html
-                                (create-page
-                                 (map (^n `(pre ,(x->string n))) nums)
+    (let-params req ([search-key "q:q" :default ""])
+                (violet-async
+                 (^[await]
+                   (respond/ok req (cons "<!DOCTYPE html>"
+                                         (sxml:sxml->html
+                                          (create-page
+                                           (home-page await search-key)
+                                           '(div (@ (class "fb-login-button")
+                                                    (onlogin "onlogin")
+                                                    (data-width "")
+                                                    (data-size "large")
+                                                    (data-button-type "continue_with")
+                                                    (data-auto-logout-link "false")
+                                                    (data-use-continue-as "false")))
 
-                                 '(div (@ (class "fb-login-button")
-                                          (onlogin "onlogin")
-                                          (data-width "")
-                                          (data-size "large")
-                                          (data-button-type "continue_with")
-                                          (data-auto-logout-link "false")
-                                          (data-use-continue-as "false")))
-
-                                 )))))))))
+                                           ))))
+                   )))))
 
 (define-http-handler #/^\/static\// (file-handler))
 
