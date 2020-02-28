@@ -5,6 +5,9 @@
 
 (use gauche.threads)
 (use rfc.http)
+(use rfc.json)
+
+(use scheme.vector)
 
 (use sxml.tools)
 
@@ -130,20 +133,37 @@
                         (x->string ch))))
        result))))
 
+(define (fetch-alt-name vec)
+  (vector-fold (^[a b] (string-append (x->string b) " " a)) "" vec))
+
+(define (search-result-entry json)
+  (let ((id (cdr (assoc "id" json)))
+        (name (cdr (assoc "name" json)))
+        (alt-name-ids (cdr (assoc "alternative_names" json))))
+    (let ((alt-names (fetch-alt-name alt-name-ids)))
+      `(li (a (@ (href ,#"/games/~id")) ,name) ,alt-names))
+    ))
+
 (define (home-page await search-key)
   (if (> (string-length search-key) 0)
       (await (lambda ()
                (let-values (((status header body)
                              (http-post "api-v3.igdb.com"
-                                        "/search"
-                                        "fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;"
+                                        "/games/"
+                                        #"search \"~search-key\"; fields id,alternative_names,name;"
                                         :user-key api-key
                                         :secure #t
                                         )))
                  `((p ,#"Search requested: ~search-key")
                    (pre ,(x->string status))
-                   (pre ,body))))
-
+                   ,(if (equal? status "200")
+                        (let ((json (parse-json-string body)))
+                          #?=json
+                          (list 'ul
+                                #?=(vector->list (vector-map search-result-entry json)))
+                          )
+                        `("ERROR"
+                          (pre ,body))))))
                  )
       `(p "Hey!")
       )
