@@ -133,16 +133,29 @@
                         (x->string ch))))
        result))))
 
-(define (fetch-alt-name vec)
-  (vector-fold (^[a b] (string-append (x->string b) " " a)) "" vec))
+(define (get-alt-name await id)
+  (let-values (((status header body)
+                (http-post "api-v3.igdb.com"
+                           "/alternative_names/"
+                           #"fields *; where id=~id;"
+                           :user-key api-key
+                           :secure #t
+                           )))
+    (let ((json (parse-json-string body)))
+      (cdr (assoc "name" (vector-ref json 0)))
+      )))
 
-(define (search-result-entry json)
-  (let ((id (cdr (assoc "id" json)))
-        (name (cdr (assoc "name" json)))
-        (alt-name-ids (cdr (assoc "alternative_names" json))))
-    (let ((alt-names (fetch-alt-name alt-name-ids)))
-      `(li (a (@ (href ,#"/games/~id")) ,name) ,alt-names))
-    ))
+(define (fetch-alt-name await vec)
+  (vector-fold (^[a b] (string-append (get-alt-name await b) " / " a)) "" vec))
+
+(define (search-result-entry await)
+  (lambda (json)
+    (let ((id (cdr (assoc "id" json)))
+          (name (cdr (assoc "name" json)))
+          (alt-name-ids (cdr (assoc "alternative_names" json))))
+      (let ((alt-names (fetch-alt-name await alt-name-ids)))
+        `(li (a (@ (href ,#"/games/~id")) ,name) ,alt-names))
+      )))
 
 (define (home-page await search-key)
   (if (> (string-length search-key) 0)
@@ -158,10 +171,8 @@
                    (pre ,(x->string status))
                    ,(if (equal? status "200")
                         (let ((json (parse-json-string body)))
-                          #?=json
                           (list 'ul
-                                #?=(vector->list (vector-map search-result-entry json)))
-                          )
+                                (vector->list (vector-map (search-result-entry await) json))))
                         `("ERROR"
                           (pre ,body))))))
                  )
