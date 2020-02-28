@@ -13,6 +13,7 @@
 (rheingau-use makiki)
 
 (use violet)
+(use config)
 
 ;;
 ;; Application
@@ -132,11 +133,26 @@
 (define (home-page await search-key)
   (if (> (string-length search-key) 0)
       (await (lambda ()
-               (thread-sleep! 3)
-               `(p ,#"Search requestd: ~search-key")))
+               (let-values (((status header body)
+                             (http-post "api-v3.igdb.com"
+                                        "/search"
+                                        "fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;"
+                                        :user-key api-key
+                                        :secure #t
+                                        )))
+                 `((p ,#"Search requested: ~search-key")
+                   (pre ,(x->string status))
+                   (pre ,body))))
+
+                 )
       `(p "Hey!")
       )
   )
+
+;; curl '' \
+;; -d 'fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;' \
+;; -H 'user-key: API_KEY' \
+;; -H 'Accept: application/json'
 
 (define-http-handler "/"
   (^[req app]
