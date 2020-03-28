@@ -6,6 +6,7 @@
 (use gauche.threads)
 (use rfc.http)
 (use rfc.json)
+(use dbi)
 
 (use scheme.vector)
 
@@ -14,6 +15,8 @@
 (add-load-path "./gauche-rheingau/lib/")
 (use rheingau)
 (rheingau-use makiki)
+(add-load-path "./gosh-modules/dbd-sqlite3")
+(load "./gosh-modules/dbd-sqlite3/dbd/sqlite3")
 
 (use violet)
 (use config)

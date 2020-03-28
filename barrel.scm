@@ -4,4 +4,6 @@
  (dependencies
   (from-git "makiki"
             (repo "https://github.com/shirok/Gauche-makiki.git")
-            (branch "use-connection"))))
+            (branch "use-connection"))
+  (from-git/build "dbd-sqlite3"
+                  (repo "https://github.com/mhayashi1120/Gauche-dbd-sqlite3.git"))))
