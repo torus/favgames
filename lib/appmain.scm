@@ -216,33 +216,33 @@
 (define-http-handler #/^\/static\// (file-handler))
 
 (define (make-session-key!)
-  (let ((key #?=(random-integer #x10000000000000000)))
+  (let ((key (random-integer #x10000000000000000)))
     (format #f "~16,'0x" key)))
 
 (define-http-handler "/login"
   (with-post-json
    (lambda (req app)
      (let* ((json (request-param-ref req "json-body"))
-            (fb-id #?=(cdr (assoc "userID" json)))
-            (rset #?=(dbi-do *sqlite-conn*
+            (fb-id (cdr (assoc "userID" json)))
+            (rset (dbi-do *sqlite-conn*
                           "SELECT user_id FROM facebook_user_auths WHERE facebook_id = ?"
                           '() fb-id))
             (user-id #f)
-            (session-key #?=(make-session-key!)))
-       (if (zero? #?=(size-of rset))
+            (session-key (make-session-key!)))
+       (if (zero? (size-of rset))
            (begin
              (dbi-do *sqlite-conn* "INSERT INTO users (user_id) VALUES (NULL)" '())
              (set! user-id (sqlite3-last-id *sqlite-conn*))
-             #?=(dbi-do *sqlite-conn*
+             (dbi-do *sqlite-conn*
                "INSERT INTO facebook_user_auths (facebook_id, user_id) VALUES (?, ?)"
-               '() fb-id #?=user-id))
+               '() fb-id user-id))
            (for-each (^r (set! user-id (vector-ref r 0))) rset))
 
-       #?=(dbi-close rset)
+       (dbi-close rset)
 
-       #?=(dbi-do *sqlite-conn*
+       (dbi-do *sqlite-conn*
                "INSERT INTO sessions (session_key, user_id) VALUES (?, ?)"
-               '() #?=session-key #?=user-id)
+               '() session-key user-id)
 
        (respond/ok req #"OK ~session-key")
        ))))
@@ -285,7 +285,7 @@
   (^[req app]
     (violet-async
      (^[await]
-       #?=(await create-tables)
+       (await create-tables)
        (respond/ok req (cons "<!DOCTYPE html>"
                              (sxml:sxml->html
                                           (create-page
