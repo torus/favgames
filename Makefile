@@ -10,7 +10,7 @@ SCRIPT=script.scm
 
 build: $(TARGET) $(RHEINGAU)
 
-run: $(TARGET) $(RHEINGAU)
+run: $(TARGET)
 	$(RHEINGAU)/rh1 install
 #	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) ./$(TARGET) $(SCRIPT)
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) nodemon -e scm --ignore gosh-modules/ --ignore gauche-rheingau/ --exec ./$(TARGET) $(SCRIPT)
