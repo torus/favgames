@@ -3,7 +3,11 @@
 
 (select-module appmain)
 
+(use gauche.collection)
 (use gauche.threads)
+
+(use srfi-27) ; random
+
 (use rfc.http)
 (use rfc.json)
 (use dbi)
@@ -11,6 +15,7 @@
 (use scheme.vector)
 
 (use sxml.tools)
+(use text.tree)
 
 (add-load-path "./gauche-rheingau/lib/")
 (use rheingau)
@@ -210,14 +215,85 @@
 
 (define-http-handler #/^\/static\// (file-handler))
 
+(define (make-session-key!)
+  (let ((key #?=(random-integer #x10000000000000000)))
+    (format #f "~16,'0x" key)))
+
 (define-http-handler "/login"
   (with-post-json
    (lambda (req app)
      (let* ((json (request-param-ref req "json-body"))
-            (user-id (cdr (assoc "userID" json))))
-       #?=user-id
-       (respond/ok req "OK")
+            (fb-id #?=(cdr (assoc "userID" json)))
+            (rset #?=(dbi-do *sqlite-conn*
+                          "SELECT user_id FROM facebook_user_auths WHERE facebook_id = ?"
+                          '() fb-id))
+            (user-id #f)
+            (session-key #?=(make-session-key!)))
+       (if (zero? #?=(size-of rset))
+           (begin
+             (dbi-do *sqlite-conn* "INSERT INTO users (user_id) VALUES (NULL)" '())
+             (set! user-id (sqlite3-last-id *sqlite-conn*))
+             #?=(dbi-do *sqlite-conn*
+               "INSERT INTO facebook_user_auths (facebook_id, user_id) VALUES (?, ?)"
+               '() fb-id #?=user-id))
+           (for-each (^r (set! user-id (vector-ref r 0))) rset))
+
+       #?=(dbi-close rset)
+
+       #?=(dbi-do *sqlite-conn*
+               "INSERT INTO sessions (session_key, user_id) VALUES (?, ?)"
+               '() #?=session-key #?=user-id)
+
+       (respond/ok req #"OK ~session-key")
        ))))
 
+(define *sqlite-conn* #f)
+
+(define (execute-query str)
+  (dbi-execute (dbi-prepare *sqlite-conn* str)))
+
+(define (execute-query-tree tree)
+  (execute-query (tree->string tree)))
+
+(define (create-tables)
+  (execute-query "DROP TABLE IF EXISTS users")
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS users ("
+                        " user_id INTEGER PRIMARY KEY"
+                        ")"))
+
+  (execute-query "DROP TABLE IF EXISTS facebook_user_auths")
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS facebook_user_auths ("
+                        " facebook_id INTEGER PRIMARY KEY,"
+                        " user_id INTEGER"
+                        ")"))
+
+  (execute-query "DROP TABLE IF EXISTS games")
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS games ("
+                        " game_id INTEGER PRIMARY KEY,"
+                        " user_id INTEGER"
+                        ")"))
+
+  (execute-query "DROP TABLE IF EXISTS sessions")
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS sessions ("
+                        " session_key TEXT PRIMARY KEY,"
+                        " user_id INTEGER"
+                        ")"))
+
+  'ok)
+
+(define-http-handler "/admin/setup"
+  (^[req app]
+    (violet-async
+     (^[await]
+       #?=(await create-tables)
+       (respond/ok req (cons "<!DOCTYPE html>"
+                             (sxml:sxml->html
+                                          (create-page
+                                           '(p "done")
+                                           ))))))))
+
 (define (app-start!)
-  )
+  (random-source-randomize! default-random-source)
+  (let ((conn (dbi-connect "dbi:sqlite3:favgame-sqlite3.db")))
+    (set! *sqlite-conn* conn)
+    (print "Sqlite connected")))
