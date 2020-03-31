@@ -141,7 +141,7 @@
                         (x->string ch))))
        result))))
 
-(define (get-alt-name await id)
+(define (get-alt-name id)
   (let-values (((status header body)
                 (http-post "api-v3.igdb.com"
                            "/alternative_names/"
@@ -153,19 +153,26 @@
       (cdr (assoc "name" (vector-ref json 0)))
       )))
 
-(define (fetch-alt-name await vec)
-  (vector-fold (^[a b] (string-append (get-alt-name await b) " / " a)) "" vec))
+(define (fetch-alt-names vec)
+  (vector-fold (^[a b] (cons (get-alt-name b) a)) '() vec))
 
-(define (search-result-entry await)
+(define (search-result-entry user-id search-key)
   (lambda (json)
     (let ((id (cdr (assoc "id" json)))
           (name (cdr (assoc "name" json)))
           (alt-name-ids (cdr (assoc "alternative_names" json))))
-      (let ((alt-names (fetch-alt-name await alt-name-ids)))
-        `(li (a (@ (href ,#"/games/~id")) ,name) ,alt-names))
-      )))
+      (let* ((alt-names (fetch-alt-names alt-name-ids))
+             (matching-names (filter (cut string-scan <> search-key) (cons name alt-names))))
+        `(tr (th ,(string-join matching-names " / "))
+             (td ,(string-join (cons name alt-names) " / "))
+             (td ,(if user-id
+                      `(button (@ (type "button") (class "btn btn-primary text-nowrap"))
+                               "おきにいりに追加")
+                      `(button (@ (type "button") (class "btn btn-primary text-nowrap")
+                                  (disabled "disabled"))
+                               "おきにいりに追加"))))))))
 
-(define (home-page await search-key)
+(define (home-page await search-key user-id)
   (if (> (string-length search-key) 0)
       (await (lambda ()
                (let-values (((status header body)
@@ -179,8 +186,10 @@
                    (pre ,(x->string status))
                    ,(if (equal? status "200")
                         (let ((json (parse-json-string body)))
-                          (list 'ul
-                                (vector->list (vector-map (search-result-entry await) json))))
+                          `(table (@ (class "table"))
+                                  (tr (th "名前") (th "別名") (td ""))
+                                  ,(vector->list (vector-map (search-result-entry user-id search-key)
+                                                             json))))
                         `("ERROR"
                           (pre ,body))))))
                  )
@@ -212,7 +221,7 @@
                      (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
-                                             (home-page await search-key)
+                                             (home-page await search-key user-id)
                                              (if user-id
                                                  `(p ,#"Hello ~user-id")
                                                  '(div (@ (class "fb-login-button")
