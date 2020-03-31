@@ -193,25 +193,36 @@
 ;; -H 'user-key: API_KEY' \
 ;; -H 'Accept: application/json'
 
+(define (get-session key)
+  (let ((rset (dbi-do *sqlite-conn* "SELECT user_id FROM sessions WHERE session_key = ?" '() key)))
+    (if (zero? (size-of rset))
+        #f
+        (let ((row (find-min rset)))
+          (vector-ref row 0)))))
+
 (define-http-handler "/"
   (^[req app]
     (let-params req ([search-key "q:q" :default ""])
                 (violet-async
                  (^[await]
-                   (respond/ok req (cons "<!DOCTYPE html>"
-                                         (sxml:sxml->html
-                                          (create-page
-                                           (home-page await search-key)
-                                           '(div (@ (class "fb-login-button")
-                                                    (onlogin "onlogin")
-                                                    (data-width "")
-                                                    (data-size "large")
-                                                    (data-button-type "continue_with")
-                                                    (data-auto-logout-link "false")
-                                                    (data-use-continue-as "false")))
+                   (let* ((session-cookie (request-cookie-ref req "sesskey"))
+                          (user-id (and session-cookie
+                                        (await (cut get-session (cadr session-cookie))))))
 
-                                           ))))
-                   )))))
+                     (respond/ok req (cons "<!DOCTYPE html>"
+                                           (sxml:sxml->html
+                                            (create-page
+                                             (home-page await search-key)
+                                             (if user-id
+                                                 `(p ,#"Hello ~user-id")
+                                                 '(div (@ (class "fb-login-button")
+                                                          (onlogin "onlogin")
+                                                          (data-width "")
+                                                          (data-size "large")
+                                                          (data-button-type "continue_with")
+                                                          (data-auto-logout-link "false")
+                                                          (data-use-continue-as "false"))))
+                                             ))))))))))
 
 (define-http-handler #/^\/static\// (file-handler))
 
@@ -244,6 +255,7 @@
                "INSERT INTO sessions (session_key, user_id) VALUES (?, ?)"
                '() session-key user-id)
 
+       (response-cookie-add! req "sesskey" session-key)
        (respond/ok req #"OK ~session-key")
        ))))
 
