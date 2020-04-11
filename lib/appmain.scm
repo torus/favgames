@@ -166,8 +166,12 @@
         `(tr (th ,(string-join matching-names " / "))
              (td ,(string-join (cons name alt-names) " / "))
              (td ,(if user-id
-                      `(button (@ (type "button") (class "btn btn-primary text-nowrap"))
-                               "おきにいりに追加")
+                      (let ((button-id #"add-button-~id"))
+                        `(button (@ (type "button")
+                                    (class "btn btn-primary text-nowrap")
+                                    (id ,button-id)
+                                    (onclick ,#"addGame(\"~id\", \"~button-id\")"))
+                                 "おきにいりに追加"))
                       `(button (@ (type "button") (class "btn btn-primary text-nowrap")
                                   (disabled "disabled"))
                                "おきにいりに追加"))))))))
@@ -230,8 +234,27 @@
                                                           (data-size "large")
                                                           (data-button-type "continue_with")
                                                           (data-auto-logout-link "false")
-                                                          (data-use-continue-as "false"))))
+                                                          (data-use-continue-as "false"))
+                                                       ""))
                                              ))))))))))
+
+
+(define-http-handler "/add"
+  (with-post-json
+   (lambda (req app)
+     (violet-async
+      (^[await]
+        (let* ((session-cookie (request-cookie-ref req "sesskey"))
+               (user-id (and session-cookie
+                             (await (cut get-session (cadr session-cookie)))))
+               (json (request-param-ref req "json-body"))
+               (game-id (cdr (assoc "game" json))))
+          (dbi-do *sqlite-conn*
+                  "INSERT OR IGNORE INTO games (game_id, user_id) VALUES (?, ?)"
+                  '() game-id user-id)
+
+          (respond/ok req #"OK")
+          ))))))
 
 (define-http-handler #/^\/static\// (file-handler))
 

@@ -22,3 +22,16 @@ function onlogin(res) {
   // data_access_expiration_time: 1593180481
 
 }
+
+function addGame(gameId, buttonId) {
+  let button = $("#" + buttonId)
+  button.attr('disabled', 'disabled')
+  button.text('...')
+  $.ajax({
+    method: 'POST',
+    url: '/add',
+    data: JSON.stringify({game: gameId})
+  }).done(data => {
+    $(button).text("追加済み")
+  })
+}
