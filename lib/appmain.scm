@@ -242,6 +242,43 @@
 ; recommendation
 ; select f1.user_id u, f1.game_id g1, f2.game_id g2 from favorites f0, favorites f1, favorites f2 where f0.user_id = 3 and f1.user_id = f2.user_id and g1 = f0.game_id and g1 <> g2;
 
+(define (get-favs user-id)
+  (dbi-do *sqlite-conn*
+          "SELECT game_id FROM favs WHERE user_id = ?"
+          '() user-id))
+
+(define (get-game-info await game-id-list)
+  (await (^[]
+           (let-values (((status header body)
+                         (let ((ids (string-join (map x->string game-id-list) ", ")))
+                           (http-post "api-v3.igdb.com"
+                                      "/games/"
+                                      #"fields *; where id = (~ids);"
+                                      :user-key api-key
+                                      :secure #t
+                                      ))))
+             (if (equal? status "200")
+                 (let ((json (parse-json-string body)))
+                   (vector->list (vector-map (^j `(p ,(write-to-string j))) #?=json)))
+                 `("ERROR"
+                   (pre ,body)))
+             ))))
+
+(define (favs await user-id)
+  (let ((rset (await (cut get-favs user-id))))
+    (get-game-info await (map (^[row] (vector-ref row 0)) rset))))
+
+(define-http-handler #/^\/favs\/(\d+)/
+  (^[req app]
+    (let-params req ([user-id "p:1" :convert x->integer])
+                (violet-async
+                 (^[await]
+                   (respond/ok req (cons "<!DOCTYPE html>"
+                                           (sxml:sxml->html
+                                            (create-page
+                                             (favs await user-id)))))
+                   )))))
+
 (define-http-handler "/add"
   (with-post-json
    (lambda (req app)
@@ -253,7 +290,7 @@
                (json (request-param-ref req "json-body"))
                (game-id (cdr (assoc "game" json))))
           (dbi-do *sqlite-conn*
-                  "INSERT OR IGNORE INTO games (game_id, user_id) VALUES (?, ?)"
+                  "INSERT OR IGNORE INTO favs (game_id, user_id) VALUES (?, ?)"
                   '() game-id user-id)
 
           (respond/ok req #"OK")
@@ -314,8 +351,8 @@
                         " user_id INTEGER"
                         ")"))
 
-  (execute-query "DROP TABLE IF EXISTS games")
-  (execute-query-tree '("CREATE TABLE IF NOT EXISTS games ("
+  (execute-query "DROP TABLE IF EXISTS favs")
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS favs ("
                         " game_id INTEGER PRIMARY KEY,"
                         " user_id INTEGER"
                         ")"))
