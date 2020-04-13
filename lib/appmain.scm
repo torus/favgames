@@ -239,6 +239,9 @@
                                              ))))))))))
 
 
+; recommendation
+; select f1.user_id u, f1.game_id g1, f2.game_id g2 from favorites f0, favorites f1, favorites f2 where f0.user_id = 3 and f1.user_id = f2.user_id and g1 = f0.game_id and g1 <> g2;
+
 (define-http-handler "/add"
   (with-post-json
    (lambda (req app)
