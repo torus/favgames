@@ -247,26 +247,38 @@
           "SELECT game_id FROM favs WHERE user_id = ?"
           '() user-id))
 
-(define (get-game-info await game-id-list)
-  (await (^[]
-           (let-values (((status header body)
-                         (let ((ids (string-join (map x->string game-id-list) ", ")))
-                           (http-post "api-v3.igdb.com"
-                                      "/games/"
-                                      #"fields *; where id = (~ids);"
-                                      :user-key api-key
-                                      :secure #t
-                                      ))))
-             (if (equal? status "200")
-                 (let ((json (parse-json-string body)))
-                   (vector->list (vector-map (^j `(p ,(write-to-string j))) #?=json)))
-                 `("ERROR"
-                   (pre ,body)))
-             ))))
+(define (get-game-info-from-igdb await game-id-list)
+  (if (null? game-id-list)
+      ()
+      (await (^[]
+               (let-values (((status header body)
+                             (let ((ids (string-join (map x->string game-id-list) ", ")))
+                               (http-post "api-v3.igdb.com"
+                                          "/games/"
+                                          #?=#"fields *; where id = (~ids);"
+                                          :user-key api-key
+                                          :secure #t
+                                          ))))
+                 (if (equal? status "200")
+                     (let ((json (parse-json-string body)))
+                       (vector->list (vector-map (^j
+                                                  (let ((game-id #?=(cdr (assoc "id" j))))
+                                                    (cons game-id j))) #?=json)))
+                     `("ERROR"
+                       (pre ,body)))
+                 )))))
 
-(define (favs await user-id)
-  (let ((rset (await (cut get-favs user-id))))
-    (get-game-info await (map (^[row] (vector-ref row 0)) rset))))
+(define (render-favs await user-id)
+  #?=(let* ((rset (await (cut get-favs #?=user-id)))
+         (game-id-list #?=(map (^[row] (vector-ref row 0)) rset))
+         (game-info-alist #?=(get-game-info-from-igdb await game-id-list)))
+    `(table ,@(map (^[game]
+                    (let ((game-id (car game))
+                          (game-info (cdr game)))
+                      `(tr (td ,(x->string game-id))
+                           (td ,(write-to-string game-info))))
+                    ) game-info-alist))
+    ))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
@@ -276,7 +288,7 @@
                    (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
-                                             (favs await user-id)))))
+                                             (render-favs await user-id)))))
                    )))))
 
 (define-http-handler "/add"
