@@ -249,7 +249,7 @@
           "SELECT game_id FROM favs WHERE user_id = ?"
           '() user-id))
 
-(define (get-game-data-from-igdb await game-id-list)
+(define (get-game-detail-from-igdb await game-id-list)
   (if (null? game-id-list)
       ()
       (await (^[]
@@ -270,7 +270,7 @@
                        (pre ,body)))
                  )))))
 
-(define (get-game-data-from-cache await game-id)
+(define (get-game-detail-from-cache await game-id)
   (let ((rset (dbi-do *sqlite-conn*
                 "SELECT data FROM game_data_cache WHERE game_id = ?"
                 '() game-id)))
@@ -280,12 +280,12 @@
           (dbi-close rset)
           (vector-ref row 0)))))
 
-(define (put-game-datas-to-cache await game-data-alist)
-  (let loop ((alist game-data-alist))
+(define (put-game-details-to-cache await game-detail-alist)
+  (let loop ((alist game-detail-alist))
     (if (null? alist)
         'done
         (let* ((id-and-data (car alist))
-               (id #?=(car id-and-data))
+               (id (car id-and-data))
                (data (cdr id-and-data)))
           (await (^[]
                    (dbi-do *sqlite-conn*
@@ -293,32 +293,32 @@
                            '() id (write-to-string data))))
           (loop (cdr alist))))))
 
-(define (get-game-datas-from-cache/missing-ids await game-ids)
+(define (get-game-details-from-cache/missing-ids await game-ids)
   (let loop ((game-ids game-ids)
-             (game-data-alist ())
+             (game-detail-alist ())
              (missing-ids ()))
     (if (null? game-ids)
-        (values game-data-alist missing-ids)
+        (values game-detail-alist missing-ids)
         (let* ((id (car game-ids))
-               (info (get-game-data-from-cache await id)))
+               (info (get-game-detail-from-cache await id)))
           (if info
-              (loop (cdr game-ids) (acons id info game-data-alist) missing-ids)
-              (loop (cdr game-ids) game-data-alist (cons id missing-ids)))))))
+              (loop (cdr game-ids) (acons id info game-detail-alist) missing-ids)
+              (loop (cdr game-ids) game-detail-alist (cons id missing-ids)))))))
 
 (define (render-favs await user-id)
-  (let*-values (((rset) #?=(await (cut get-favs user-id)))
-                ((game-ids) #?=(map (^[row] (vector-ref row 0)) rset))
-                ((game-data-alist-cache missing-game-ids)
-                 (get-game-datas-from-cache/missing-ids await game-ids))
-                ((game-data-alist-igdb) (get-game-data-from-igdb await missing-game-ids)))
+  (let*-values (((rset) (await (cut get-favs user-id)))
+                ((game-ids) (map (^[row] (vector-ref row 0)) rset))
+                ((game-detail-alist-cache missing-game-ids)
+                 (get-game-details-from-cache/missing-ids await game-ids))
+                ((game-detail-alist-igdb) (get-game-detail-from-igdb await missing-game-ids)))
     (dbi-close rset)
-    (put-game-datas-to-cache await game-data-alist-igdb)
+    (put-game-details-to-cache await game-detail-alist-igdb)
     `(table ,@(map (^[game]
                     (let ((game-id (car game))
-                          (game-data (cdr game)))
+                          (game-detail (cdr game)))
                       `(tr (td ,(x->string game-id))
-                           (td ,(write-to-string game-data))))
-                    ) (append game-data-alist-cache game-data-alist-igdb)))
+                           (td ,(write-to-string game-detail))))
+                    ) (append game-detail-alist-cache game-detail-alist-igdb)))
     ))
 
 (define-http-handler #/^\/favs\/(\d+)/
