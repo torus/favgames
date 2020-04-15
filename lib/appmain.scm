@@ -278,7 +278,7 @@
         #f
         (let ((row (find-min rset)))
           (dbi-close rset)
-          (vector-ref row 0)))))
+          (read-from-string (vector-ref row 0))))))
 
 (define (put-game-details-to-cache await game-detail-alist)
   (let loop ((alist game-detail-alist))
@@ -313,13 +313,14 @@
                 ((game-detail-alist-igdb) (get-game-detail-from-igdb await missing-game-ids)))
     (dbi-close rset)
     (put-game-details-to-cache await game-detail-alist-igdb)
-    `(table ,@(map (^[game]
-                    (let ((game-id (car game))
-                          (game-detail (cdr game)))
-                      `(tr (td ,(x->string game-id))
-                           (td ,(write-to-string game-detail))))
-                    ) (append game-detail-alist-cache game-detail-alist-igdb)))
-    ))
+    `((h2 "おきにいりのゲーム")
+      (table (@ (class "table"))
+            ,@(map (^[game]
+                     (let ((game-id (car game))
+                           (game-detail (cdr game)))
+                       `(tr (td ,(cdr (assoc "name" game-detail)))
+                            ))
+                     ) (append game-detail-alist-cache game-detail-alist-igdb))))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
