@@ -280,6 +280,19 @@
           (dbi-close rset)
           (vector-ref row 0)))))
 
+(define (put-game-datas-to-cache await game-data-alist)
+  (let loop ((alist game-data-alist))
+    (if (null? alist)
+        'done
+        (let* ((id-and-data (car alist))
+               (id #?=(car id-and-data))
+               (data (cdr id-and-data)))
+          (await (^[]
+                   (dbi-do *sqlite-conn*
+                           "INSERT OR IGNORE INTO game_data_cache (game_id, data) VALUES (?, ?)"
+                           '() id (write-to-string data))))
+          (loop (cdr alist))))))
+
 (define (get-game-datas-from-cache/missing-ids await game-ids)
   (let loop ((game-ids game-ids)
              (game-data-alist ())
@@ -297,8 +310,9 @@
                 ((game-ids) #?=(map (^[row] (vector-ref row 0)) rset))
                 ((game-data-alist-cache missing-game-ids)
                  (get-game-datas-from-cache/missing-ids await game-ids))
-                ((game-data-alist-igdb) (get-game-data-from-igdb await #?=missing-game-ids)))
+                ((game-data-alist-igdb) (get-game-data-from-igdb await missing-game-ids)))
     (dbi-close rset)
+    (put-game-datas-to-cache await game-data-alist-igdb)
     `(table ,@(map (^[game]
                     (let ((game-id (car game))
                           (game-data (cdr game)))

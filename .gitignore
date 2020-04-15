@@ -6,3 +6,4 @@ violet
 .DS_Store
 lib/config.scm
 *.db
+igdb-sample.scm
