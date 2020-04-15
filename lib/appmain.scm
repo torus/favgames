@@ -13,6 +13,7 @@
 (use dbi)
 
 (use scheme.vector)
+(use scheme.set)
 
 (use sxml.tools)
 (use text.tree)
@@ -211,6 +212,7 @@
     (if (zero? (size-of rset))
         #f
         (let ((row (find-min rset)))
+          (dbi-close rset)
           (vector-ref row 0)))))
 
 (define-http-handler "/"
@@ -247,7 +249,7 @@
           "SELECT game_id FROM favs WHERE user_id = ?"
           '() user-id))
 
-(define (get-game-info-from-igdb await game-id-list)
+(define (get-game-data-from-igdb await game-id-list)
   (if (null? game-id-list)
       ()
       (await (^[]
@@ -255,29 +257,54 @@
                              (let ((ids (string-join (map x->string game-id-list) ", ")))
                                (http-post "api-v3.igdb.com"
                                           "/games/"
-                                          #?=#"fields *; where id = (~ids);"
+                                          #"fields *; where id = (~ids);"
                                           :user-key api-key
                                           :secure #t
                                           ))))
                  (if (equal? status "200")
                      (let ((json (parse-json-string body)))
                        (vector->list (vector-map (^j
-                                                  (let ((game-id #?=(cdr (assoc "id" j))))
-                                                    (cons game-id j))) #?=json)))
+                                                  (let ((game-id (cdr (assoc "id" j))))
+                                                    (cons game-id j))) json)))
                      `("ERROR"
                        (pre ,body)))
                  )))))
 
+(define (get-game-data-from-cache await game-id)
+  (let ((rset (dbi-do *sqlite-conn*
+                "SELECT data FROM game_data_cache WHERE game_id = ?"
+                '() game-id)))
+    (if (zero? (size-of rset))
+        #f
+        (let ((row (find-min rset)))
+          (dbi-close rset)
+          (vector-ref row 0)))))
+
+(define (get-game-datas-from-cache/missing-ids await game-ids)
+  (let loop ((game-ids game-ids)
+             (game-data-alist ())
+             (missing-ids ()))
+    (if (null? game-ids)
+        (values game-data-alist missing-ids)
+        (let* ((id (car game-ids))
+               (info (get-game-data-from-cache await id)))
+          (if info
+              (loop (cdr game-ids) (acons id info game-data-alist) missing-ids)
+              (loop (cdr game-ids) game-data-alist (cons id missing-ids)))))))
+
 (define (render-favs await user-id)
-  #?=(let* ((rset (await (cut get-favs #?=user-id)))
-         (game-id-list #?=(map (^[row] (vector-ref row 0)) rset))
-         (game-info-alist #?=(get-game-info-from-igdb await game-id-list)))
+  (let*-values (((rset) #?=(await (cut get-favs user-id)))
+                ((game-ids) #?=(map (^[row] (vector-ref row 0)) rset))
+                ((game-data-alist-cache missing-game-ids)
+                 (get-game-datas-from-cache/missing-ids await game-ids))
+                ((game-data-alist-igdb) (get-game-data-from-igdb await #?=missing-game-ids)))
+    (dbi-close rset)
     `(table ,@(map (^[game]
                     (let ((game-id (car game))
-                          (game-info (cdr game)))
+                          (game-data (cdr game)))
                       `(tr (td ,(x->string game-id))
-                           (td ,(write-to-string game-info))))
-                    ) game-info-alist))
+                           (td ,(write-to-string game-data))))
+                    ) (append game-data-alist-cache game-data-alist-igdb)))
     ))
 
 (define-http-handler #/^\/favs\/(\d+)/
@@ -375,6 +402,11 @@
                         " user_id INTEGER"
                         ")"))
 
+  (execute-query "DROP TABLE IF EXISTS game_data_cache")
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS game_data_cache ("
+                        " game_id INTEGER PRIMARY KEY,"
+                        " data TEXT"
+                        ")"))
   'ok)
 
 (define-http-handler "/admin/setup"
