@@ -272,7 +272,7 @@
 
 (define (get-game-detail-from-cache await game-id)
   (let ((rset (dbi-do *sqlite-conn*
-                "SELECT data FROM game_data_cache WHERE game_id = ?"
+                "SELECT data FROM cache_games WHERE game_id = ?"
                 '() game-id)))
     (if (zero? (size-of rset))
         #f
@@ -289,7 +289,7 @@
                (data (cdr id-and-data)))
           (await (^[]
                    (dbi-do *sqlite-conn*
-                           "INSERT OR IGNORE INTO game_data_cache (game_id, data) VALUES (?, ?)"
+                           "INSERT OR IGNORE INTO cache_games (game_id, data) VALUES (?, ?)"
                            '() id (write-to-string data))))
           (loop (cdr alist))))))
 
@@ -418,7 +418,12 @@
                         ")"))
 
   (execute-query "DROP TABLE IF EXISTS game_data_cache")
-  (execute-query-tree '("CREATE TABLE IF NOT EXISTS game_data_cache ("
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_games ("
+                        " game_id INTEGER PRIMARY KEY,"
+                        " data TEXT"
+                        ")"))
+
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_alternative_names ("
                         " game_id INTEGER PRIMARY KEY,"
                         " data TEXT"
                         ")"))
