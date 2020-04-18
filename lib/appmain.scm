@@ -142,30 +142,19 @@
                         (x->string ch))))
        result))))
 
-(define (get-alt-name id)
-  (let-values (((status header body)
-                (http-post "api-v3.igdb.com"
-                           "/alternative_names/"
-                           #"fields *; where id=~id;"
-                           :user-key api-key
-                           :secure #t
-                           )))
-    (let ((json (parse-json-string body)))
-      (cdr (assoc "name" (vector-ref json 0)))
-      )))
-
-(define (fetch-alt-names vec)
-  (vector-fold (^[a b] (cons (get-alt-name b) a)) '() vec))
+(define (fetch-alt-names await vec)
+  (let ((alt-name-alist (get-alt-names await (vector->list vec))))
+    (map (^[entry] (let ((json (cdr entry))) (cdr (assoc "name" json)))) alt-name-alist)))
 
 (define (cdr-or-empty x)
   (if (pair? x) (cdr x) #()))
 
-(define (search-result-entry user-id search-key)
+(define (search-result-entry await user-id search-key)
   (lambda (json)
     (let ((id (cdr (assoc "id" json)))
           (name (cdr (assoc "name" json)))
           (alt-name-ids (cdr-or-empty (assoc "alternative_names" json))))
-      (let* ((alt-names (fetch-alt-names alt-name-ids))
+      (let* ((alt-names #?=(fetch-alt-names await alt-name-ids))
              (matching-names (filter (cut string-scan <> search-key) (cons name alt-names))))
         `(tr (th ,(string-join matching-names " / "))
              (td ,(string-join (cons name alt-names) " / "))
@@ -196,7 +185,7 @@
                         (let ((json (parse-json-string body)))
                           `(table (@ (class "table"))
                                   (tr (th "名前") (th "別名") (td ""))
-                                  ,(vector->list (vector-map (search-result-entry user-id search-key)
+                                  ,(vector->list (vector-map (search-result-entry await user-id search-key)
                                                              json))))
                         `("ERROR"
                           (pre ,body))))))
@@ -251,6 +240,8 @@
   (dbi-do *sqlite-conn*
           "SELECT game_id FROM favs WHERE user_id = ?"
           '() user-id))
+
+;; Games
 
 (define (get-game-detail-from-igdb await game-id-list)
   (if (null? game-id-list)
@@ -314,6 +305,73 @@
                 ((game-detail-alist-igdb) (get-game-detail-from-igdb await missing-game-ids)))
     (put-game-details-to-cache await game-detail-alist-igdb)
     (append game-detail-alist-cache game-detail-alist-igdb)))
+
+;; Alternative Names
+
+(define (get-alt-names-from-igdb await id-list)
+  (if (null? id-list)
+      ()
+      (await (^[]
+               (let-values (((status header body)
+                             (let ((ids (string-join (map x->string id-list) ", ")))
+                               (http-post "api-v3.igdb.com"
+                                          "/alternative_names/"
+                                          #"fields *; where id = (~ids);"
+                                          :user-key api-key
+                                          :secure #t
+                                          ))))
+                 (if (equal? status "200")
+                     (let ((json (parse-json-string body)))
+                       (vector->list (vector-map (^j
+                                                  (let ((game-id (cdr (assoc "id" j))))
+                                                    (cons game-id j))) json)))
+                     `("ERROR"
+                       (pre ,body)))
+                 )))))
+
+(define (get-alt-name-from-cache await id)
+  (let ((rset (dbi-do *sqlite-conn*
+                "SELECT data FROM cache_alternative_names WHERE id = ?"
+                '() id)))
+    (if (zero? #?=(size-of rset))
+        #f
+        (let ((row (find-min rset)))
+          (dbi-close rset)
+          (read-from-string (vector-ref row 0))))))
+
+(define (put-alt-names-to-cache await alt-name-alist)
+  (let loop ((alist #?=alt-name-alist))
+    (if (null? alist)
+        'done
+        (let* ((id-and-data (car alist))
+               (id (car id-and-data))
+               (data (cdr id-and-data)))
+          (await (^[]
+                   (dbi-do *sqlite-conn*
+                           "INSERT OR IGNORE INTO cache_alternative_names (id, data) VALUES (?, ?)"
+                           '() id (write-to-string data))))
+          (loop (cdr alist))))))
+
+(define (get-alt-names-from-cache/missing-ids await ids)
+  (let loop ((ids ids)
+             (alt-name-alist ())
+             (missing-ids ()))
+    (if (null? ids)
+        (values alt-name-alist missing-ids)
+        (let* ((id (car ids))
+               (info (get-alt-name-from-cache await id)))
+          (if info
+              (loop (cdr ids) (acons id info alt-name-alist) missing-ids)
+              (loop (cdr ids) alt-name-alist (cons id missing-ids)))))))
+
+(define (get-alt-names await ids)
+  (let*-values (((alt-name-alist-cache missing-ids)
+                 (get-alt-names-from-cache/missing-ids await ids))
+                ((alt-name-alist-igdb) (get-alt-names-from-igdb await missing-ids)))
+    (put-alt-names-to-cache await alt-name-alist-igdb)
+    (append alt-name-alist-cache alt-name-alist-igdb)))
+
+;;
 
 (define (render-favs await user-id)
   (let*-values (((rset) (await (cut get-favs user-id)))
