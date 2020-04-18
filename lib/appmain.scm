@@ -394,30 +394,25 @@
   (execute-query (tree->string tree)))
 
 (define (create-tables)
-  (execute-query "DROP TABLE IF EXISTS users")
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS users ("
                         " user_id INTEGER PRIMARY KEY"
                         ")"))
 
-  (execute-query "DROP TABLE IF EXISTS facebook_user_auths")
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS facebook_user_auths ("
                         " facebook_id INTEGER PRIMARY KEY,"
                         " user_id INTEGER"
                         ")"))
 
-  (execute-query "DROP TABLE IF EXISTS favs")
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS favs ("
                         " game_id INTEGER PRIMARY KEY,"
                         " user_id INTEGER"
                         ")"))
 
-  (execute-query "DROP TABLE IF EXISTS sessions")
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS sessions ("
                         " session_key TEXT PRIMARY KEY,"
                         " user_id INTEGER"
                         ")"))
 
-  (execute-query "DROP TABLE IF EXISTS game_data_cache")
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_games ("
                         " game_id INTEGER PRIMARY KEY,"
                         " data TEXT"
