@@ -157,11 +157,14 @@
 (define (fetch-alt-names vec)
   (vector-fold (^[a b] (cons (get-alt-name b) a)) '() vec))
 
+(define (cdr-or-empty x)
+  (if (pair? x) (cdr x) #()))
+
 (define (search-result-entry user-id search-key)
   (lambda (json)
     (let ((id (cdr (assoc "id" json)))
           (name (cdr (assoc "name" json)))
-          (alt-name-ids (cdr (assoc "alternative_names" json))))
+          (alt-name-ids (cdr-or-empty (assoc "alternative_names" json))))
       (let* ((alt-names (fetch-alt-names alt-name-ids))
              (matching-names (filter (cut string-scan <> search-key) (cons name alt-names))))
         `(tr (th ,(string-join matching-names " / "))
@@ -272,7 +275,7 @@
 
 (define (get-game-detail-from-cache await game-id)
   (let ((rset (dbi-do *sqlite-conn*
-                "SELECT data FROM cache_games WHERE game_id = ?"
+                "SELECT data FROM cache_games WHERE id = ?"
                 '() game-id)))
     (if (zero? (size-of rset))
         #f
@@ -289,7 +292,7 @@
                (data (cdr id-and-data)))
           (await (^[]
                    (dbi-do *sqlite-conn*
-                           "INSERT OR IGNORE INTO cache_games (game_id, data) VALUES (?, ?)"
+                           "INSERT OR IGNORE INTO cache_games (id, data) VALUES (?, ?)"
                            '() id (write-to-string data))))
           (loop (cdr alist))))))
 
@@ -305,14 +308,17 @@
               (loop (cdr game-ids) (acons id info game-detail-alist) missing-ids)
               (loop (cdr game-ids) game-detail-alist (cons id missing-ids)))))))
 
-(define (render-favs await user-id)
-  (let*-values (((rset) (await (cut get-favs user-id)))
-                ((game-ids) (map (^[row] (vector-ref row 0)) rset))
-                ((game-detail-alist-cache missing-game-ids)
+(define (get-game-details await game-ids)
+  (let*-values (((game-detail-alist-cache missing-game-ids)
                  (get-game-details-from-cache/missing-ids await game-ids))
                 ((game-detail-alist-igdb) (get-game-detail-from-igdb await missing-game-ids)))
-    (dbi-close rset)
     (put-game-details-to-cache await game-detail-alist-igdb)
+    (append game-detail-alist-cache game-detail-alist-igdb)))
+
+(define (render-favs await user-id)
+  (let*-values (((rset) (await (cut get-favs user-id)))
+                ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
+    (dbi-close rset)
     `((h2 "おきにいりのゲーム")
       (table (@ (class "table"))
             ,@(map (^[game]
@@ -320,7 +326,8 @@
                            (game-detail (cdr game)))
                        `(tr (td ,(cdr (assoc "name" game-detail)))
                             ))
-                     ) (append game-detail-alist-cache game-detail-alist-igdb))))))
+                     )
+                   (get-game-details await game-ids))))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
@@ -414,12 +421,12 @@
                         ")"))
 
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_games ("
-                        " game_id INTEGER PRIMARY KEY,"
+                        " id INTEGER PRIMARY KEY,"
                         " data TEXT"
                         ")"))
 
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_alternative_names ("
-                        " game_id INTEGER PRIMARY KEY,"
+                        " id INTEGER PRIMARY KEY,"
                         " data TEXT"
                         ")"))
   'ok)
