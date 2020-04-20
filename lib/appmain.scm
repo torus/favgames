@@ -315,6 +315,17 @@
 
 ;;
 
+(define (render-fav-entry await game-detail)
+  (let* ((alt-name-ids (cdr-or-empty (assoc "alternative_names" game-detail)))
+         (alt-names #?=(get-alt-names await (vector->list alt-name-ids)))
+         (japanese-title (filter (^[entry]
+                                   (let ((dat (cdr entry)))
+                                     (string=? (cdr #?=(assoc "comment" dat)) "Japanese title")))
+                                 alt-names)))
+    `(tr (td ,(cdr (assoc "name" (if (null? japanese-title)
+                                     game-detail
+                                     #?=(car japanese-title))))))))
+
 (define (render-favs await user-id)
   (let*-values (((rset) (await (cut get-favs user-id)))
                 ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
@@ -324,9 +335,7 @@
             ,@(map (^[game]
                      (let ((game-id (car game))
                            (game-detail (cdr game)))
-                       `(tr (td ,(cdr (assoc "name" game-detail)))
-                            ))
-                     )
+                       (render-fav-entry await game-detail)))
                    (get-game-details await game-ids))))))
 
 (define-http-handler #/^\/favs\/(\d+)/
