@@ -241,73 +241,6 @@
           "SELECT game_id FROM favs WHERE user_id = ?"
           '() user-id))
 
-;; Games
-
-(define (get-game-detail-from-igdb await game-id-list)
-  (if (null? game-id-list)
-      ()
-      (await (^[]
-               (let-values (((status header body)
-                             (let ((ids (string-join (map x->string game-id-list) ", ")))
-                               (http-post "api-v3.igdb.com"
-                                          "/games/"
-                                          #"fields *; where id = (~ids);"
-                                          :user-key api-key
-                                          :secure #t
-                                          ))))
-                 (if (equal? status "200")
-                     (let ((json (parse-json-string body)))
-                       (vector->list (vector-map (^j
-                                                  (let ((game-id (cdr (assoc "id" j))))
-                                                    (cons game-id j))) json)))
-                     `("ERROR"
-                       (pre ,body)))
-                 )))))
-
-(define (get-game-detail-from-cache await game-id)
-  (let ((rset (dbi-do *sqlite-conn*
-                "SELECT data FROM cache_games WHERE id = ?"
-                '() game-id)))
-    (if (zero? (size-of rset))
-        #f
-        (let ((row (find-min rset)))
-          (dbi-close rset)
-          (read-from-string (vector-ref row 0))))))
-
-(define (put-game-details-to-cache await game-detail-alist)
-  (let loop ((alist game-detail-alist))
-    (if (null? alist)
-        'done
-        (let* ((id-and-data (car alist))
-               (id (car id-and-data))
-               (data (cdr id-and-data)))
-          (await (^[]
-                   (dbi-do *sqlite-conn*
-                           "INSERT OR IGNORE INTO cache_games (id, data) VALUES (?, ?)"
-                           '() id (write-to-string data))))
-          (loop (cdr alist))))))
-
-(define (get-game-details-from-cache/missing-ids await game-ids)
-  (let loop ((game-ids game-ids)
-             (game-detail-alist ())
-             (missing-ids ()))
-    (if (null? game-ids)
-        (values game-detail-alist missing-ids)
-        (let* ((id (car game-ids))
-               (info (get-game-detail-from-cache await id)))
-          (if info
-              (loop (cdr game-ids) (acons id info game-detail-alist) missing-ids)
-              (loop (cdr game-ids) game-detail-alist (cons id missing-ids)))))))
-
-(define (get-game-details await game-ids)
-  (let*-values (((game-detail-alist-cache missing-game-ids)
-                 (get-game-details-from-cache/missing-ids await game-ids))
-                ((game-detail-alist-igdb) (get-game-detail-from-igdb await missing-game-ids)))
-    (put-game-details-to-cache await game-detail-alist-igdb)
-    (append game-detail-alist-cache game-detail-alist-igdb)))
-
-;; Alternative Names
-
 (define (get-data-from-igdb await end-point id-list)
   (if (null? id-list)
       ()
@@ -363,6 +296,14 @@
           (if info
               (loop (cdr ids) (acons id info alist) missing-ids)
               (loop (cdr ids) alist (cons id missing-ids)))))))
+
+(define (get-game-details await ids)
+  (let*-values (((alist-cache missing-ids)
+                 (get-data-from-cache/missing-ids await "cache_games" ids))
+                ((alist-igdb)
+                 (get-data-from-igdb await "/games/" missing-ids)))
+    (put-data-to-cache await "cache_games" alist-igdb)
+    (append alist-cache alist-igdb)))
 
 (define (get-alt-names await ids)
   (let*-values (((alt-name-alist-cache missing-ids)
