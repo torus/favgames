@@ -176,19 +176,23 @@
                                         :secure #t
                                         )))
                  `((p ,#"Search requested: ~search-key")
-                   (pre ,(x->string status))
                    ,(if (equal? status "200")
                         (let ((json (parse-json-string body)))
-                          `(table (@ (class "table"))
-                                  (tr (th "名前") (td ""))
-                                  ,(vector->list (vector-map (search-result-entry await user-id search-key)
-                                                             json))))
+                          `((h2 "検索結果")
+                            (table (@ (class "table"))
+                                   (tr (th "名前") (td ""))
+                                   ,(vector->list
+                                     (vector-map (search-result-entry await user-id search-key)
+                                                 json)))))
                         `("ERROR"
-                          (pre ,body))))))
-                 )
-      `(p "Hey!")
-      )
-  )
+                          (pre ,body)))))))
+      `((h2 "ゲームを探す")
+        (form
+        (@ (class "form-inline my-2 my-lg-0") (action "/"))
+        (input (@ (type "text") (placeholder "Search") (class "form-control mr-sm-2")
+                  (aria-label "Search")
+                  (name "q")))
+        (button (@ (type "submit") (class "btn btn-secondary my-2 my-sm-0")) "Search")))))
 
 ;; curl '' \
 ;; -d 'fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;' \
@@ -217,7 +221,7 @@
                                             (create-page
                                              (home-page await search-key user-id)
                                              (if user-id
-                                                 `(p ,#"Hello ~user-id")
+                                                 `()
                                                  '(div (@ (class "fb-login-button")
                                                           (onlogin "onlogin")
                                                           (data-width "")
