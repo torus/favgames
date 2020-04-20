@@ -308,14 +308,14 @@
 
 ;; Alternative Names
 
-(define (get-alt-names-from-igdb await id-list)
+(define (get-data-from-igdb await end-point id-list)
   (if (null? id-list)
       ()
       (await (^[]
                (let-values (((status header body)
                              (let ((ids (string-join (map x->string id-list) ", ")))
                                (http-post "api-v3.igdb.com"
-                                          "/alternative_names/"
+                                          end-point
                                           #"fields *; where id = (~ids);"
                                           :user-key api-key
                                           :secure #t
@@ -329,9 +329,9 @@
                        (pre ,body)))
                  )))))
 
-(define (get-alt-name-from-cache await id)
+(define (get-data-from-cache await table id)
   (let ((rset (dbi-do *sqlite-conn*
-                "SELECT data FROM cache_alternative_names WHERE id = ?"
+                      #"SELECT data FROM ~table WHERE id = ?"
                 '() id)))
     (if (zero? #?=(size-of rset))
         #f
@@ -339,8 +339,8 @@
           (dbi-close rset)
           (read-from-string (vector-ref row 0))))))
 
-(define (put-alt-names-to-cache await alt-name-alist)
-  (let loop ((alist #?=alt-name-alist))
+(define (put-data-to-cache await table alist)
+  (let loop ((alist alist))
     (if (null? alist)
         'done
         (let* ((id-and-data (car alist))
@@ -348,27 +348,28 @@
                (data (cdr id-and-data)))
           (await (^[]
                    (dbi-do *sqlite-conn*
-                           "INSERT OR IGNORE INTO cache_alternative_names (id, data) VALUES (?, ?)"
+                           #"INSERT OR IGNORE INTO ~table (id, data) VALUES (?, ?)"
                            '() id (write-to-string data))))
           (loop (cdr alist))))))
 
-(define (get-alt-names-from-cache/missing-ids await ids)
+(define (get-data-from-cache/missing-ids await table ids)
   (let loop ((ids ids)
-             (alt-name-alist ())
+             (alist ())
              (missing-ids ()))
     (if (null? ids)
-        (values alt-name-alist missing-ids)
+        (values alist missing-ids)
         (let* ((id (car ids))
-               (info (get-alt-name-from-cache await id)))
+               (info (get-data-from-cache await table id)))
           (if info
-              (loop (cdr ids) (acons id info alt-name-alist) missing-ids)
-              (loop (cdr ids) alt-name-alist (cons id missing-ids)))))))
+              (loop (cdr ids) (acons id info alist) missing-ids)
+              (loop (cdr ids) alist (cons id missing-ids)))))))
 
 (define (get-alt-names await ids)
   (let*-values (((alt-name-alist-cache missing-ids)
-                 (get-alt-names-from-cache/missing-ids await ids))
-                ((alt-name-alist-igdb) (get-alt-names-from-igdb await missing-ids)))
-    (put-alt-names-to-cache await alt-name-alist-igdb)
+                 (get-data-from-cache/missing-ids await "cache_alternative_names" ids))
+                ((alt-name-alist-igdb)
+                 (get-data-from-igdb await "/alternative_names/" missing-ids)))
+    (put-data-to-cache await "cache_alternative_names" alt-name-alist-igdb)
     (append alt-name-alist-cache alt-name-alist-igdb)))
 
 ;;
