@@ -35,3 +35,8 @@ function addGame(gameId, buttonId) {
     $(button).text("追加済み")
   })
 }
+
+function submitProfile(form) {
+  console.log("submitProfile", form['name-input'].value)
+  return false
+}

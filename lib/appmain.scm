@@ -207,6 +207,16 @@
           (dbi-close rset)
           (vector-ref row 0)))))
 
+(define (fb-login-button)
+  '(div (@ (class "fb-login-button")
+           (onlogin "onlogin")
+           (data-width "")
+           (data-size "large")
+           (data-button-type "continue_with")
+           (data-auto-logout-link "false")
+           (data-use-continue-as "false"))
+        ""))
+
 (define-http-handler "/"
   (^[req app]
     (let-params req ([search-key "q:q" :default ""])
@@ -222,14 +232,7 @@
                                              (home-page await search-key user-id)
                                              (if user-id
                                                  `()
-                                                 '(div (@ (class "fb-login-button")
-                                                          (onlogin "onlogin")
-                                                          (data-width "")
-                                                          (data-size "large")
-                                                          (data-button-type "continue_with")
-                                                          (data-auto-logout-link "false")
-                                                          (data-use-continue-as "false"))
-                                                       ""))
+                                                 (fb-login-button))
                                              ))))))))))
 
 
@@ -370,6 +373,35 @@
           (respond/ok req #"OK")
           ))))))
 
+(define (profile-form await user-id)
+  `((h2 "プロフィールの編集")
+    (form (@ (onsubmit "return submitProfile(this)"))
+     (div (@ (class "form-group"))
+          (label (@ (for "name-input")) "名前")
+          (input (@ (type "text")
+                    (class "form-control")
+                    (id "name-input")
+                    (aria-describedby "name-help")))
+          (small (@ (id "name-help")
+                    (class "form-text text-muted"))
+                 "公開されても良い名前を書いてください。"))
+     (button (@ (type "submit") (class "btn btn-primary")) "送信")))
+  )
+
+(define-http-handler "/profile"
+  (^[req app]
+    (violet-async
+     (^[await]
+       (let* ((session-cookie (request-cookie-ref req "sesskey"))
+               (user-id (and session-cookie
+                             (await (cut get-session (cadr session-cookie))))))
+         (respond/ok req (cons "<!DOCTYPE html>"
+                                   (sxml:sxml->html
+                                    (create-page
+                                     (if user-id
+                                         (profile-form await user-id)
+                                         (fb-login-button)))))))))))
+
 (define-http-handler #/^\/static\// (file-handler))
 
 (define (make-session-key!)
@@ -415,7 +447,8 @@
 
 (define (create-tables)
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS users ("
-                        " user_id INTEGER PRIMARY KEY"
+                        " user_id INTEGER PRIMARY KEY,"
+                        " display_name TEXT"
                         ")"))
 
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS facebook_user_auths ("
@@ -442,6 +475,7 @@
                         " id INTEGER PRIMARY KEY,"
                         " data TEXT"
                         ")"))
+
   'ok)
 
 (define-http-handler "/admin/setup"
