@@ -46,7 +46,13 @@ function submitProfile(form) {
   }).done(data => {
     console.log('submitted', data)
 
-    $(form).find('button')
+    const btn = $(form).find('button')
+    btn.text('保存済み')
+
+    $(form).change(ev => {
+      btn.removeAttr('disabled')
+      btn.text('保存')
+    })
   })
 
   $(form).find('button').attr('disabled', 'disabled')

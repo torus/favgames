@@ -385,7 +385,7 @@
           (small (@ (id "name-help")
                     (class "form-text text-muted"))
                  "公開されても良い名前を書いてください。"))
-     (button (@ (type "submit") (class "btn btn-primary")) "送信")))
+     (button (@ (type "submit") (class "btn btn-primary")) "保存")))
   )
 
 (define-http-handler "/profile"
