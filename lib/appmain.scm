@@ -402,6 +402,25 @@
                                          (profile-form await user-id)
                                          (fb-login-button)))))))))))
 
+(define-http-handler "/profile/update"
+  (with-post-json
+   (^[req app]
+     (violet-async
+      (^[await]
+        (let* ((session-cookie (request-cookie-ref req "sesskey"))
+               (user-id (and session-cookie
+                             (await (cut get-session (cadr session-cookie)))))
+               (json (request-param-ref req "json-body"))
+               (name (cdr (assoc "name" json))))
+          (if user-id
+              (begin
+                (await (^[]
+                         (dbi-do *sqlite-conn*
+                                 "INSERT OR REPLACE INTO user_profile (user_id, name) VALUES (?, ?)"
+                                 '() user-id name)))
+                (respond/ok req "done"))
+              (respond/ok req "not logged in"))))))))
+
 (define-http-handler #/^\/static\// (file-handler))
 
 (define (make-session-key!)
@@ -474,6 +493,11 @@
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_alternative_names ("
                         " id INTEGER PRIMARY KEY,"
                         " data TEXT"
+                        ")"))
+
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS user_profile ("
+                        " user_id INTEGER PRIMARY KEY,"
+                        " name TEXT"
                         ")"))
 
   'ok)

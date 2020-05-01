@@ -37,6 +37,19 @@ function addGame(gameId, buttonId) {
 }
 
 function submitProfile(form) {
-  console.log("submitProfile", form['name-input'].value)
+  const name = form['name-input'].value
+  console.log("submitProfile", name)
+  $.ajax({
+    method: 'POST',
+    url: '/profile/update',
+    data: JSON.stringify({name: name})
+  }).done(data => {
+    console.log('submitted', data)
+
+    $(form).find('button')
+  })
+
+  $(form).find('button').attr('disabled', 'disabled')
+
   return false
 }
