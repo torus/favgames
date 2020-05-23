@@ -31,7 +31,7 @@
 ;; Application
 ;;
 
-(define (create-page . children)
+(define (create-page user-id . children)
   `(html
     (@ (lang "en"))
     (head
@@ -80,26 +80,12 @@
            (span (@ (class "navbar-toggler-icon"))))
           (div (@ (id "navbarsExampleDefault") (class "collapse navbar-collapse"))
                (ul (@ (class "navbar-nav"))
-                   (li (@ (class "nav-item active"))
-                       (a (@ (href "#") (class "nav-link"))
-                          "Home " (span (@ (class "sr-only")) "(current)")))
-                   (li (@ (class "nav-item")) (a (@ (href "#") (class "nav-link")) "Link"))
                    (li (@ (class "nav-item"))
-                       (a (@
-                           (tabindex "-1") (href "#") (class "nav-link disabled")
-                           (aria-disabled "true"))
-                          "Disabled"))
-                   (li (@ (class "nav-item dropdown"))
-                       (a (@ (id "dropdown01") (href "#")
-                             (data-toggle "dropdown")
-                             (class "nav-link dropdown-toggle")
-                             (aria-haspopup "true")
-                             (aria-expanded "false"))
-                          "Dropdown")
-                       (div (@ (class "dropdown-menu") (aria-labelledby "dropdown01"))
-                            (a (@ (href "#") (class "dropdown-item")) "Action")
-                            (a (@ (href "#") (class "dropdown-item")) "Another action")
-                            (a (@ (href "#") (class "dropdown-item")) "Something else here"))))
+                       ,(if user-id
+                            `(a (@ (href "/profile"))
+                                ,(x->string user-id))
+                            `(a (@ (href "/login"))
+                                "ログイン"))))
                (form
                 (@ (class "form-inline my-2 my-lg-0")
                    (action "/"))
@@ -107,7 +93,8 @@
                           (aria-label "Search")
                           (name "q")))
                 (button (@ (type "submit") (class "btn btn-secondary my-2 my-sm-0"))
-                        "Search"))))
+                        "Search"))
+               ))
      (main
       (@ (role "main") (class "container"))
       ,@children)
@@ -217,6 +204,12 @@
            (data-use-continue-as "false"))
         ""))
 
+(define (get-user-id-from-cookie await req)
+  (let* ((session-cookie (request-cookie-ref req "sesskey"))
+         (user-id (and session-cookie
+                       (await (cut get-session (cadr session-cookie))))))
+    user-id))
+
 (define-http-handler "/"
   (^[req app]
     (let-params req ([search-key "q:q" :default ""])
@@ -229,10 +222,8 @@
                      (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
+                                             (get-user-id-from-cookie await req)
                                              (home-page await search-key user-id)
-                                             (if user-id
-                                                 `()
-                                                 (fb-login-button))
                                              ))))))))))
 
 
@@ -353,6 +344,7 @@
                    (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
+                                             (get-user-id-from-cookie await req)
                                              (render-favs await user-id)))))
                    )))))
 
@@ -398,9 +390,11 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                    (sxml:sxml->html
                                     (create-page
+                                     (get-user-id-from-cookie await req)
                                      (if user-id
                                          (profile-form await user-id)
-                                         (fb-login-button)))))))))))
+                                         '(p (a (@ (href "/login")
+                                                   "ログインしてください。")))))))))))))
 
 (define-http-handler "/profile/update"
   (with-post-json
@@ -427,34 +421,47 @@
   (let ((key (random-integer #x10000000000000000)))
     (format #f "~16,'0x" key)))
 
+(define-http-handler '(GET) "/login"
+  (^[req app]
+    ))
+
 (define-http-handler "/login"
   (with-post-json
    (lambda (req app)
-     (let* ((json (request-param-ref req "json-body"))
-            (fb-id (cdr (assoc "userID" json)))
-            (rset (dbi-do *sqlite-conn*
-                          "SELECT user_id FROM facebook_user_auths WHERE facebook_id = ?"
-                          '() fb-id))
-            (user-id #f)
-            (session-key (make-session-key!)))
-       (if (zero? (size-of rset))
-           (begin
-             (dbi-do *sqlite-conn* "INSERT INTO users (user_id) VALUES (NULL)" '())
-             (set! user-id (sqlite3-last-id *sqlite-conn*))
-             (dbi-do *sqlite-conn*
-               "INSERT INTO facebook_user_auths (facebook_id, user_id) VALUES (?, ?)"
-               '() fb-id user-id))
-           (for-each (^r (set! user-id (vector-ref r 0))) rset))
+     (if (eq? 'POST (request-method req))
+         (let* ((json (request-param-ref req "json-body"))
+                (fb-id (cdr (assoc "userID" json)))
+                (rset (dbi-do *sqlite-conn*
+                              "SELECT user_id FROM facebook_user_auths WHERE facebook_id = ?"
+                              '() fb-id))
+                (user-id #f)
+                (session-key (make-session-key!)))
+           (if (zero? (size-of rset))
+               (begin
+                 (dbi-do *sqlite-conn* "INSERT INTO users (user_id) VALUES (NULL)" '())
+                 (set! user-id (sqlite3-last-id *sqlite-conn*))
+                 (dbi-do *sqlite-conn*
+                         "INSERT INTO facebook_user_auths (facebook_id, user_id) VALUES (?, ?)"
+                         '() fb-id user-id))
+               (for-each (^r (set! user-id (vector-ref r 0))) rset))
 
-       (dbi-close rset)
+           (dbi-close rset)
 
-       (dbi-do *sqlite-conn*
-               "INSERT INTO sessions (session_key, user_id) VALUES (?, ?)"
-               '() session-key user-id)
+           (dbi-do *sqlite-conn*
+                   "INSERT INTO sessions (session_key, user_id) VALUES (?, ?)"
+                   '() session-key user-id)
 
-       (response-cookie-add! req "sesskey" session-key)
-       (respond/ok req #"OK ~session-key")
-       ))))
+           (response-cookie-add! req "sesskey" session-key)
+           (respond/ok req #"OK ~session-key"))
+
+         ;; GET method
+         (respond/ok req (cons "<!DOCTYPE html>"
+                               (sxml:sxml->html
+                                (create-page
+                                 #f
+                                 (fb-login-button)
+                                 )))))
+     )))
 
 (define *sqlite-conn* #f)
 
@@ -510,6 +517,7 @@
        (respond/ok req (cons "<!DOCTYPE html>"
                              (sxml:sxml->html
                                           (create-page
+                                           (get-user-id-from-cookie await req)
                                            '(p "done")
                                            ))))))))
 

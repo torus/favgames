@@ -9,6 +9,7 @@ function onlogin(res) {
       data: JSON.stringify({userID: res.authResponse.userID})
     }).done(data => {
       console.log(data)
+      location.href = '/'
     })
   } else {
     console.log("not connected", res)
