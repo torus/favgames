@@ -1,4 +1,17 @@
+<<<<<<< HEAD
 (add-load-path "./lib/")
+=======
+(use gauche.threads)
+(use rfc.http)
+
+(use sxml.tools)
+
+(add-load-path "gauche-rheingau/lib" :relative)
+(use rheingau)
+(rheingau-use makiki)
+
+(add-load-path "lib" :relative)
+>>>>>>> specify :relative on add-load-path
 (use violet)
 (use appmain)
 
