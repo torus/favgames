@@ -149,9 +149,9 @@
 
 (define (search-result-entry await user-id search-key)
   (lambda (json)
-    (let ((id (cdr (assoc "id" json)))
+    (let ((id (cdr (assoc "id" #?=json)))
           (name (cdr (assoc "name" json))))
-      `(tr (th ,(get-display-name await json))
+      `(tr (th ,(render-game-title-with-link await json))
            (td ,(if user-id
                     (let ((button-id #"add-button-~id"))
                       `(button (@ (type "button")
@@ -169,7 +169,7 @@
                (let-values (((status header body)
                              (http-post "api.igdb.com"
                                         "/v4/games/"
-                                        #"search \"~search-key\"; fields id,alternative_names,name;"
+                                        #"search \"~search-key\"; fields id,alternative_names,name,url;"
                                         :client-id twitch-clinet-id
 										:authorization #"Bearer ~twitch-access-token"
                                         :secure #t
@@ -324,7 +324,7 @@
 
 (define (get-display-name await game-detail)
   (let* ((alt-name-ids (cdr-or-empty (assoc "alternative_names" game-detail)))
-         (alt-names #?=(get-alt-names await (vector->list alt-name-ids)))
+         (alt-names (get-alt-names await (vector->list alt-name-ids)))
          (japanese-title (filter (^[entry]
                                    (let* ((dat (cdr entry))
                                           (comment (assoc "comment" dat)))
@@ -334,8 +334,14 @@
                            game-detail
                            #?=(car japanese-title))))))
 
+(define (render-game-title-with-link await game-detail)
+  `(a (@ (href ,(cdr-or-empty (assoc "url" #?=game-detail)))
+		 (target "_blank")
+		 (rel "noopener noreferrer"))
+	  ,(get-display-name await game-detail)))
+
 (define (render-fav-entry await game-detail)
-  `(tr (td ,(get-display-name await game-detail))))
+  `(tr (td ,(render-game-title-with-link await game-detail))))
 
 (define (render-favs await user-id)
   (let*-values (((rset) (await (cut get-favs user-id)))
