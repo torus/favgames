@@ -67,7 +67,7 @@
      (script (@ (async "async") (defer "defer") (crossorigin "anonymous")
                 (src "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.3&appId=468063727261207&autoLogAppEvents=1")) "")
      (nav (@ (class "navbar navbar-expand-md navbar-dark bg-dark fixed-top"))
-          (a (@ (href "#") (class "navbar-brand")) "Favorite Games")
+          (a (@ (href "/") (class "navbar-brand")) "Favorite Games")
           (button
            (@
             (type "button")
@@ -82,7 +82,7 @@
                (ul (@ (class "navbar-nav"))
                    (li (@ (class "nav-item"))
                        ,(if user-id
-                            `(a (@ (href "/profile"))
+                            `(a (@ (href ,#"/favs/~user-id"))
                                 ,(x->string user-id))
                             `(a (@ (href "/login"))
                                 "ログイン"))))
@@ -382,7 +382,39 @@
      (button (@ (type "submit") (class "btn btn-primary")) "保存")))
   )
 
+(define (get-profile await user-id)
+  (await (^[]
+		   (let ((rset (dbi-do *sqlite-conn*
+							   "SELECT name FROM user_profile WHERE user_id = ?"
+							   '() user-id)))
+			 (let ((name (if (zero? (size-of rset))
+							 "ななしさん"
+							 (vector-ref (find-min rset) 0) )))
+			   (acons 'name name ()))
+			 ))))
+
+(define (profile-page await user-id)
+  (let ((prof #?=(get-profile await user-id)))
+	`((h2 "プロフィール")
+	  (p "名前：" ,(cdr (assq 'name prof))))))
+
 (define-http-handler "/profile"
+  (^[req app]
+    (violet-async
+     (^[await]
+       (let* ((session-cookie (request-cookie-ref req "sesskey"))
+              (user-id (and session-cookie
+                            (await (cut get-session (cadr session-cookie))))))
+         (respond/ok req (cons "<!DOCTYPE html>"
+                               (sxml:sxml->html
+                                (create-page
+                                 user-id
+                                 (if user-id
+                                     #?=(profile-page await user-id)
+                                     '(p (a (@ (href "/login")
+                                               "ログインしてください。")))))))))))))
+
+(define-http-handler "/profile/form"
   (^[req app]
     (violet-async
      (^[await]
