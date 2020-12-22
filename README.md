@@ -1,36 +1,43 @@
-Libuv + Gauche = Violet
+Favorite Games
 =======================
 
-Overview
---------
-
-```
-Libuv <-> makiki <-> File I/O
-                 <-> Network I/O
-```
+IGDB https://api-docs.igdb.com/
 
 Run
 ---
 
 ```
-$ docker-compose up
+$ sudo docker-compose up
 ```
 
-Server runs on http://localhost:2222
+Server runs on http://localhost:2225
+
+Setup
+-----
+
+Create `lib/config.scm` like so:
+
+```
+(define-module config
+  (export twitch-clinet-id twitch-secret twitch-access-token
+		  twitch-token-type)
+  )
+
+(select-module config)
+
+(define twitch-clinet-id "CLIENT ID")
+(define twitch-secret "SECRET")
+(define twitch-access-token "ACCESS TOKEN")
+(define twitch-token-type "bearer")
+```
+
+Create Tables
+-------------
+
+http://localhost:2225/admin/setup
 
 
-Requirements
-------------
+See Also
+---------
 
-* libgauche (HEAD version is required)
-* libuv
-
-Depends on
-----------
-
-* [makiki](https://github.com/shirok/Gauche-makiki) -- a simple multithreaded http server
-* [Rheingau](https://github.com/torus/gauche-rheingau) -- a dumb package manager for Gauche
-
-References
-----------
-* [An Introduction to libuv](https://nikhilm.github.io/uvbook/index.html)
+[torus/gauche-violet: Libuv + Gauche](https://github.com/torus/gauche-violet)
