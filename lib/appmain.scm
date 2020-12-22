@@ -242,10 +242,11 @@
       (await (^[]
                (let-values (((status header body)
                              (let ((ids (string-join (map x->string id-list) ", ")))
-                               (http-post "api-v3.igdb.com"
-                                          end-point
+                               (http-post "api.igdb.com"
+                                          #?=#"/v4~end-point"
                                           #"fields *; where id = (~ids);"
-                                          :user-key api-key
+                                          :client-id twitch-clinet-id
+										  :authorization #"Bearer ~twitch-access-token"
                                           :secure #t
                                           ))))
                  (if (equal? status "200")
@@ -253,8 +254,8 @@
                        (vector->list (vector-map (^j
                                                   (let ((game-id (cdr (assoc "id" j))))
                                                     (cons game-id j))) json)))
-                     `("ERROR"
-                       (pre ,body)))
+                     (raise (list status body)
+                      ))
                  )))))
 
 (define (get-data-from-cache await table id)
