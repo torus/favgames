@@ -6,7 +6,7 @@ LD_LIBRARY_PATH=$(shell gauche-config --sysarchdir)
 
 RHEINGAU=./gauche-rheingau
 
-SCRIPT=eg/random.scm
+SCRIPT=favgames.scm
 
 build: $(TARGET) $(RHEINGAU)
 	$(RHEINGAU)/rh1 install
