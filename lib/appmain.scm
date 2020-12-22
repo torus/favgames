@@ -156,10 +156,11 @@
   (if (> (string-length search-key) 0)
       (await (lambda ()
                (let-values (((status header body)
-                             (http-post "api-v3.igdb.com"
-                                        "/games/"
+                             (http-post "api.igdb.com"
+                                        "/v4/games/"
                                         #"search \"~search-key\"; fields id,alternative_names,name;"
-                                        :user-key api-key
+                                        :client-id twitch-clinet-id
+										:authorization #"Bearer ~twitch-access-token"
                                         :secure #t
                                         )))
                  `((p ,#"Search requested: ~search-key")
