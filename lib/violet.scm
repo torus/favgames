@@ -133,7 +133,9 @@
                 (make-thread
                  (^[]
                    (let ((result 
-                          (guard (exc [else (x->string exc)])
+                          (guard (exc [else
+									   (report-error exc)
+									   (x->string exc)])
                                  (proc))))
                      (enqueue-task! (^[] (cont result)))))))
                (yield)))))
