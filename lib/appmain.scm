@@ -161,7 +161,7 @@
 
 (define (search-result-entry await user-id search-key)
   (lambda (json)
-    (let ((id (cdr (assoc "id" #?=json)))
+    (let ((id (cdr (assoc "id" json)))
           (name (cdr (assoc "name" json))))
       `(tr (th ,(render-game-title-with-link await json))
            (td ,(if user-id
@@ -267,7 +267,7 @@
                (let-values (((status header body)
                              (let ((ids (string-join (map x->string id-list) ", ")))
                                (http-post "api.igdb.com"
-                                          #?=#"/v4~end-point"
+                                          #"/v4~end-point"
                                           #"fields *; where id = (~ids);"
                                           :client-id twitch-clinet-id
 										  :authorization #"Bearer ~twitch-access-token"
@@ -286,7 +286,7 @@
   (let ((rset (dbi-do *sqlite-conn*
                       #"SELECT data FROM ~table WHERE id = ?"
                 '() id)))
-    (if (zero? #?=(size-of rset))
+    (if (zero? (size-of rset))
         #f
         (let ((row (find-min rset)))
           (dbi-close rset)
@@ -345,10 +345,10 @@
                                  alt-names)))
     (cdr (assoc "name" (if (null? japanese-title)
                            game-detail
-                           #?=(car japanese-title))))))
+                           (car japanese-title))))))
 
 (define (render-game-title-with-link await game-detail)
-  `(a (@ (href ,(cdr-or-empty (assoc "url" #?=game-detail)))
+  `(a (@ (href ,(cdr-or-empty (assoc "url" game-detail)))
 		 (target "_blank")
 		 (rel "noopener noreferrer"))
 	  ,(get-display-name await game-detail)))
@@ -428,7 +428,7 @@
 			 ))))
 
 (define (profile-page await user-id)
-  (let ((prof #?=(get-profile await user-id)))
+  (let ((prof (get-profile await user-id)))
 	`((h2 "プロフィール")
 	  (p "名前：" ,(cdr (assq 'name prof)))
 	  (p (a (@ (href "/profile/form")) "プロフィールを更新する")))))
@@ -446,7 +446,7 @@
 								 "プロフィール"
                                  user-id
                                  (if user-id
-                                     #?=(profile-page await user-id)
+                                     (profile-page await user-id)
                                      '(p (a (@ (href "/login")
                                                "ログインしてください。")))))))))))))
 
