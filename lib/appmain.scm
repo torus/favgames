@@ -31,7 +31,7 @@
 ;; Application
 ;;
 
-(define (create-page user-id . children)
+(define (create-page title user-id . children)
   `(html
     (@ (lang "en"))
     (head
@@ -39,7 +39,7 @@
      (meta (@ (name "viewport") (content "width=device-width, initial-scale=1, shrink-to-fit=no")))
      (meta (@ (name "description") (content "")))
      (meta (@ (name "author") (content "Mark Otto, Jacob Thornton, and Bootstrap contributors")))
-     (title "Starter Template · Bootstrap")
+     (title ,title)
      (link (@
             (rel "stylesheet")
             (integrity "sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T")
@@ -246,6 +246,7 @@
                      (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
+											 "おきにいりゲーム"
                                              (get-user-id-from-cookie await req)
                                              (home-page await search-key user-id)
                                              ))))))))))
@@ -359,13 +360,14 @@
   (let*-values (((rset) (await (cut get-favs user-id)))
                 ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
     (dbi-close rset)
-    `((h2 "おきにいりのゲーム")
+	(let ((prof (get-profile await user-id)))
+    `((h2 ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
       (table (@ (class "table"))
             ,@(map (^[game]
                      (let ((game-id (car game))
                            (game-detail (cdr game)))
                        (render-fav-entry await game-detail)))
-                   (get-game-details await game-ids))))))
+                   (get-game-details await game-ids)))))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
@@ -375,6 +377,7 @@
                    (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
+											 "おきにいり"
                                              (get-user-id-from-cookie await req)
                                              (render-favs await user-id)))))
                    )))))
@@ -440,6 +443,7 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                (sxml:sxml->html
                                 (create-page
+								 "プロフィール"
                                  user-id
                                  (if user-id
                                      #?=(profile-page await user-id)
@@ -456,6 +460,7 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                    (sxml:sxml->html
                                     (create-page
+									 "プロフィールの更新"
                                      (get-user-id-from-cookie await req)
                                      (if user-id
                                          (profile-form await user-id)
@@ -524,6 +529,7 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                (sxml:sxml->html
                                 (create-page
+								 "ログイン"
                                  #f
                                  (fb-login-button)
                                  )))))
@@ -582,10 +588,11 @@
        (await create-tables)
        (respond/ok req (cons "<!DOCTYPE html>"
                              (sxml:sxml->html
-                                          (create-page
-                                           (get-user-id-from-cookie await req)
-                                           '(p "done")
-                                           ))))))))
+                              (create-page
+							   "初期設定"
+                               (get-user-id-from-cookie await req)
+                               '(p "done")
+                               ))))))))
 
 (define (app-start!)
   (random-source-randomize! default-random-source)
