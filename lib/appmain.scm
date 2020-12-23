@@ -548,6 +548,8 @@
                         " user_id INTEGER PRIMARY KEY,"
                         " display_name TEXT"
                         ")"))
+  (execute-query-tree '("INSERT OR IGNORE INTO users (user_id, display_name)"
+						" VALUES (6502, '6502')"))
 
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS facebook_user_auths ("
                         " facebook_id INTEGER PRIMARY KEY,"
@@ -578,6 +580,8 @@
                         " user_id INTEGER PRIMARY KEY,"
                         " name TEXT"
                         ")"))
+  (execute-query-tree '("INSERT OR IGNORE INTO user_profile (user_id, name)"
+						" VALUES (6502, '6502')"))
 
   'ok)
 
