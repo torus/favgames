@@ -1,10 +1,18 @@
 version: '2'
 services:
-  gosh:
+  web:
     build: .
     volumes:
       - .:/code
-    ports:
-      - "2225:2225"
+      - logvolume01:/var/log
     expose:
       - "2225"
+    ports:
+      - "2225:2225"
+    environment:
+      VIRTUAL_HOST: favgam.seaknot.dev
+      LETSENCRYPT_HOST: favgam.seaknot.dev
+      LETSENCRYPT_EMAIL: toru-letsencrypt-favgam@torus.jp
+
+volumes:
+  logvolume01: {}
