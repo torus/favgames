@@ -1,0 +1,27 @@
+{
+  "name": "favgam",
+  "version": "1.0.0",
+  "description": "Favorite Games =======================",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "dependencies": {
+    "bulma": "^0.9.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/torus/favgames.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/torus/favgames/issues"
+  },
+  "homepage": "https://github.com/torus/favgames#readme"
+}
