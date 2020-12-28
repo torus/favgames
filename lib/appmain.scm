@@ -36,108 +36,27 @@
     (@ (lang "en"))
     (head
      (meta (@ (charset "utf-8")))
-     (meta (@ (name "viewport") (content "width=device-width, initial-scale=1, shrink-to-fit=no")))
-     (meta (@ (name "description") (content "")))
-     (meta (@ (name "author") (content "Mark Otto, Jacob Thornton, and Bootstrap contributors")))
+     (meta (@ (name "viewport") (content "width=device-width, initial-scale=1")))
+     (meta (@ (name "description") (content "Share your favorite games!")))
+     (meta (@ (name "author") (content "Toru Hisai @ Seaknot Studios GK")))
      (title ,title)
-     (link (@
-            (rel "stylesheet")
-            (integrity "sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T")
-            (href "https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css")
-            (crossorigin "anonymous")))
-     (style
-         (string-append
-          ".bd-placeholder-img {"
-          "  font-size: 1.125rem;"
-          "  text-anchor: middle;"
-          "  -webkit-user-select: none;"
-          "  -moz-user-select: none;"
-          "  -ms-user-select: none;"
-          "  user-select: none;"
-          "}"
-          "@media (min-width: 768px) {"
-          "  .bd-placeholder-img-lg {"
-          "    font-size: 3.5rem;"
-          "  }"
-          "}"
-          ))
-     (link (@ (rel "stylesheet") (href "/static/starter-template.css"))))
+)
     (body
      (div (@ (id "fb-root")) "")
      (script (@ (async "async") (defer "defer") (crossorigin "anonymous")
                 (src "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.3&appId=468063727261207&autoLogAppEvents=1")) "")
-     (nav (@ (class "navbar navbar-expand-md navbar-dark bg-dark fixed-top"))
-          (a (@ (href "/") (class "navbar-brand")) "Favorite Games")
-          (button
-           (@
-            (type "button")
-            (data-toggle "collapse")
-            (data-target "#navbarsExampleDefault")
-            (class "navbar-toggler")
-            (aria-label "Toggle navigation")
-            (aria-expanded "false")
-            (aria-controls "navbarsExampleDefault"))
-           (span (@ (class "navbar-toggler-icon"))))
-          (div (@ (id "navbarsExampleDefault")
-				  (class "collapse navbar-collapse"))
-               (ul (@ (class "navbar-nav"))
-				   (li (@ (class "nav-item"))
-					   (form
-						(@ (class "form-inline my-2 my-lg-0")
-						   (action "/"))
-						(input (@ (type "text") (placeholder "Search") (class "form-control mr-sm-2")
-								  (aria-label "Search")
-								  (name "q")))
-						(button (@ (type "submit") (class "btn btn-secondary my-2 my-sm-0"))
-								"Search")))))
-		  (div (@ (class "collapse navbar-collapse"))
-			   (ul (@ (class "navbar-nav ml-auto dropdown"))
-				   (a (@ (class "nav-link dropdown-toggle")
-						 (data-toggle "dropdown")
-						 (href "#") (role "button")
-						 (aria-haspopup "true") (aria-expanded "false")
-						 (style "padding-left: 9em"))
-					  "○")
-				   (div (@ (class "dropdown-menu"))
-						,(if user-id
-                             `(a (@ (class "dropdown-item")
-									(href "/profile"))
-                                 "プロフィール")
-                             `(a (@ (class "dropdown-item")
-									(href "/login"))
-                                 "ログイン"))
-						,(if user-id
-							 `(a (@ (class "dropdown-item")
-									(href ,#"/favs/~user-id"))
-								 "おきにいり")
-							 `(a (@ (class "dropdown-item disabled")
-									(href "#"))
-								 "おきにいり")
-							 )
-)))
 
 
-)
-     (main
-      (@ (role "main") (class "container"))
-      ,@children)
+ ,@children
+
      (script (@ (src "/static/script.js")) "")
-     (script (@
-              (src "https://code.jquery.com/jquery-3.4.1.min.js")
-              (integrity "sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=")
-              (crossorigin "anonymous"))
-             "")
-     (script (@
-              (src "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js")
-              (integrity "sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1")
-              (crossorigin "anonymous"))
-             "")
-     (script (@
-              (src "https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js")
-              (integrity "sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM")
-              (crossorigin "anonymous"))
-             "")))
-  )
+	 (script (@ (defer "defer")
+				(src "https://use.fontawesome.com/releases/v5.14.0/js/all.js")))
+
+
+
+
+	 )))
 
 
 
@@ -487,6 +406,7 @@
               (respond/ok req "not logged in"))))))))
 
 (define-http-handler #/^\/static\// (file-handler))
+(define-http-handler #/^\/bulma\// (file-handler :root "./node_modules"))
 
 (define (make-session-key!)
   (let ((key (random-integer #x10000000000000000)))

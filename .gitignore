@@ -7,3 +7,4 @@ violet
 lib/config.scm
 *.db
 igdb-sample.scm
+node_modules/
