@@ -10,7 +10,9 @@ function onlogin(res) {
 				if (httpReq.status === 200) {
 					const data = httpReq.responseText
 					console.log(data)
-					location.href = '/'
+
+					const m = location.search.match(/^\?redirect=(\/[^&]+)/)
+					location.href = m && m[1] || '/'
 				} else {
 					console.log("Error", httpReq.status)
 				}

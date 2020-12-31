@@ -31,6 +31,40 @@
 ;; Application
 ;;
 
+(define (navbar user-id)
+  `(nav (@ (class "navbar")
+		   (role "navigation")
+		   (aria-label "main navigation"))
+		(div (@ (class "navbar-brand"))
+			 (a (@ (class "navbar-item")
+				   (href "/"))
+				(h1 "FAVGAM"))
+
+			 (a (@ (role "button")
+				   (class "navbar-burger")
+				   (aria-label "menu")
+				   (aria-expanded "false")
+				   (data-target "navbarMain"))
+				(span (@ (aria-hidden "true")))
+				(span (@ (aria-hidden "true")))
+				(span (@ (aria-hidden "true"))))
+			 )
+
+		(div (@ (class "navbar-menu"))
+			 (div (@ (class "navbar-start"))
+				  (a (@ (class "navbar-item")
+						(href ,#"/favs/~user-id"))
+					 "おきにいり"))
+			 (div (@ (class "navbar-end"))
+				  (a (@ (class "navbar-item")
+						(href "/profile"))
+					 "プロフィール"))))
+
+
+
+
+)
+
 (define (create-page title user-id . children)
   `(html
     (@ (lang "en"))
@@ -39,12 +73,20 @@
      (meta (@ (name "viewport") (content "width=device-width, initial-scale=1")))
      (meta (@ (name "description") (content "Share your favorite games!")))
      (meta (@ (name "author") (content "Toru Hisai @ Seaknot Studios GK")))
+
+	 (link (@ (rel "stylesheet") (href "/bulma/css/bulma.css")))
+
      (title ,title)
 )
     (body
      (div (@ (id "fb-root")) "")
      (script (@ (async "async") (defer "defer") (crossorigin "anonymous")
                 (src "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.3&appId=468063727261207&autoLogAppEvents=1")) "")
+
+	 ,(navbar user-id)
+
+
+
 
 
  ,@children
@@ -352,6 +394,11 @@
 	  (p "名前：" ,(cdr (assq 'name prof)))
 	  (p (a (@ (href "/profile/form")) "プロフィールを更新する")))))
 
+(define (require-login req)
+  (let ((url (request-path req)))
+	`(p (a (@ (href ,#"/login?redirect=~url"))
+           "ログインしてください。"))))
+
 (define-http-handler "/profile"
   (^[req app]
     (violet-async
@@ -366,8 +413,7 @@
                                  user-id
                                  (if user-id
                                      (profile-page await user-id)
-                                     '(p (a (@ (href "/login")
-                                               "ログインしてください。")))))))))))))
+                                     (require-login req)))))))))))
 
 (define-http-handler "/profile/form"
   (^[req app]
@@ -383,8 +429,7 @@
                                      (get-user-id-from-cookie await req)
                                      (if user-id
                                          (profile-form await user-id)
-                                         '(p (a (@ (href "/login")
-                                                   "ログインしてください。")))))))))))))
+										 (require-login req)))))))))))
 
 (define-http-handler "/profile/update"
   (with-post-json
