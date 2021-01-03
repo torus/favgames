@@ -32,13 +32,13 @@
 ;;
 
 (define (navbar user-id)
-  `(nav (@ (class "navbar")
+  `(nav (@ (class "navbar is-success")
            (role "navigation")
            (aria-label "main navigation"))
         (div (@ (class "navbar-brand"))
              (a (@ (class "navbar-item")
                    (href "/"))
-                (h1 (@ (class "title is-1")) "FAVGAM"))
+                (h1 (@ (class "is-size-3")) "FAVGAM"))
 
              (a (@ (role "button")
                    (class "navbar-burger")
@@ -52,9 +52,13 @@
 
         (div (@ (class "navbar-menu"))
              (div (@ (class "navbar-start"))
-                  (a (@ (class "navbar-item")
-                        (href ,#"/favs/~user-id"))
-                     "おきにいり"))
+                  ,(if user-id
+                       `(a (@ (class "navbar-item")
+                              (href ,#"/favs/~user-id"))
+                           "おきにいり")
+                       `(a (@ (class "navbar-item")
+                              (href ,#"/login"))
+                           "ログイン・新規登録")))
              (div (@ (class "navbar-end"))
                   (a (@ (class "navbar-item")
                         (href "/profile"))
@@ -85,19 +89,25 @@
 
      ,(navbar user-id)
 
-
-
-
+     (div (@ (class "level"))
+          "")
      (div (@ (class "container"))
           ,@children)
 
+     (footer (@ (class "footer"))
+             (div (@ (class "content"))
+                  (p (strong "FAVGAM") " by "
+                     (a (@ (href "https://seaknot.dev"))
+                        "Seaknot Studio. ")
+                     ,(fas-icon "gamepad")
+                     " The game database provided by "
+                     (a (@ (href "https://www.igdb.com")) "IGDB."))))
+
+
      (script (@ (src "/static/script.js")) "")
      (script (@ (defer "defer")
-                (src "https://use.fontawesome.com/releases/v5.14.0/js/all.js")))
-
-
-
-
+                (src "https://use.fontawesome.com/releases/v5.14.0/js/all.js"))
+             "")
      )))
 
 
@@ -131,13 +141,17 @@
            (td ,(if user-id
                     (let ((button-id #"add-button-~id"))
                       `(button (@ (type "button")
-                                  (class "btn btn-primary text-nowrap")
+                                  (class "button is-primary text-nowrap")
                                   (id ,button-id)
                                   (onclick ,#"addGame(\"~id\", \"~button-id\")"))
                                "おきにいりに追加"))
-                    `(button (@ (type "button") (class "btn btn-primary text-nowrap")
+                    `(button (@ (type "button") (class "button is-primary text-nowrap")
                                 (disabled "disabled"))
                              "おきにいりに追加")))))))
+
+(define (fas-icon name)
+  `(span (@ (class "icon"))
+         (i (@ (class ,#"fas fa-~name")) "")))
 
 (define (home-page await search-key user-id)
   (if (> (string-length search-key) 0)
@@ -161,13 +175,19 @@
                                                  json)))))
                         `("ERROR"
                           (pre ,body)))))))
-      `((h2 "ゲームを探す")
-        (form
-        (@ (class "form-inline my-2 my-lg-0") (action "/"))
-        (input (@ (type "text") (placeholder "Search") (class "form-control mr-sm-2")
-                  (aria-label "Search")
-                  (name "q")))
-        (button (@ (type "submit") (class "btn btn-secondary my-2 my-sm-0")) "Search")))))
+      `((h2 (@ (class "title")) "ゲームを探す")
+        (form (@ (action "/"))
+              (div (@ (class "field has-addons"))
+                   (div (@ (class "control"))
+                        (input (@ (type "text")
+                                  (placeholder "ゲームタイトル")
+                                  (class "input")
+                                  (aria-label "Search")
+                                  (name "q"))))
+                   (div (@ (class "control"))
+                        (button (@ (type "submit")
+                                   (class "button is-info"))
+                                ,(fas-icon "search"))))))))
 
 ;; curl '' \
 ;; -d 'fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;' \
@@ -369,7 +389,7 @@
                                              (div (@ (class "tile is-child box"))
                                                   ,(render-fav-entry await game-detail)))
                                        ))
-								   cols)))
+                                   cols)))
                     rows))))))
 
 (define-http-handler #/^\/favs\/(\d+)/
