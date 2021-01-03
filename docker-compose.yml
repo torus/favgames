@@ -7,8 +7,6 @@ services:
       - logvolume01:/var/log
     expose:
       - "2225"
-    ports:
-      - "2225:2225"
     environment:
       VIRTUAL_HOST: favgam.seaknot.dev
       LETSENCRYPT_HOST: favgam.seaknot.dev
@@ -16,3 +14,8 @@ services:
 
 volumes:
   logvolume01: {}
+
+networks:
+   default:
+      external:
+         name: seaknotweb_default
