@@ -66,25 +66,28 @@ function addGame(gameId, buttonId) {
 }
 
 function submitProfile(form) {
-  const name = form['name-input'].value
-  console.log("submitProfile", name)
-  $.ajax({
-    method: 'POST',
-    url: '/profile/update',
-    data: JSON.stringify({name: name})
-  }).done(data => {
-    console.log('submitted', data)
+    const name = form['name-input'].value
+    console.log("submitProfile", name)
 
-    const btn = $(form).find('button')
-    btn.text('保存済み')
+    ajax('POST', '/profile/update', {name: name})
+        .then(data => {
+            console.log('submitted', data)
 
-    $(form).change(ev => {
-      btn.removeAttr('disabled')
-      btn.text('保存')
-    })
-  })
+            const btn = form.querySelector('button')
+            console.log("button", btn)
 
-  $(form).find('button').attr('disabled', 'disabled')
+            btn.innerText = '保存済み'
 
-  return false
+            form.onchange = ev => {
+                btn.removeAttribute('disabled')
+                btn.innerText = '保存'
+            }
+        })
+        .catch(err => {
+            console.log("ERROR", err)
+        })
+
+    form.querySelector('button').setAttribute('disabled', 'disabled')
+
+    return false
 }
