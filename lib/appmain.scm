@@ -88,8 +88,8 @@
 
 
 
-
- ,@children
+	 (div (@ (class "container"))
+		  ,@children)
 
      (script (@ (src "/static/script.js")) "")
 	 (script (@ (defer "defer")
@@ -294,6 +294,14 @@
     (put-data-to-cache await "cache_alternative_names" alt-name-alist-igdb)
     (append alt-name-alist-cache alt-name-alist-igdb)))
 
+(define (get-covers await ids)
+  (let*-values (((alist-cache missing-ids)
+                 (get-data-from-cache/missing-ids await "cache_covers" ids))
+                ((alist-igdb)
+                 (get-data-from-igdb await "/covers/" missing-ids)))
+    (put-data-to-cache await "cache_covers" alist-igdb)
+    (append alist-cache alist-igdb)))
+
 ;;
 
 (define (get-display-name await game-detail)
@@ -314,21 +322,37 @@
 		 (rel "noopener noreferrer"))
 	  ,(get-display-name await game-detail)))
 
+(define (image-url image-id)
+  #"https://images.igdb.com/igdb/image/upload/t_cover_small/~|image-id|.jpg")
+
 (define (render-fav-entry await game-detail)
-  `(tr (td ,(render-game-title-with-link await game-detail))))
+  `((figure (@ (class "image is-3x4"))
+			,(let* ((cover-id (cdr-or-empty (assoc "cover" game-detail)))
+					(covers (get-covers await (list cover-id)))
+					(cover-url (if (pair? covers)
+								   (let ((id (cdr (assoc "image_id" (car covers)))))
+									 (image-url id))
+								   "/static/noimage.png")))
+			   `(img (@ (src ,cover-url)))))
+	(p ,(render-game-title-with-link await game-detail))))
 
 (define (render-favs await user-id)
   (let*-values (((rset) (await (cut get-favs user-id)))
                 ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
     (dbi-close rset)
 	(let ((prof (get-profile await user-id)))
-    `((h2 ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
-      (table (@ (class "table"))
-            ,@(map (^[game]
-                     (let ((game-id (car game))
-                           (game-detail (cdr game)))
-                       (render-fav-entry await game-detail)))
-                   (get-game-details await game-ids)))))))
+      `((h2 ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
+		(div (@ (class "tile is-ancestor"))
+			 ,@(map (^[game]
+					  (let ((game-id (car game))
+							(game-detail (cdr game)))
+						`(div (@ (class "tile is-parent is-2"))
+							  (div (@ (class "tile is-child box"))
+								   ,(render-fav-entry await game-detail)))
+						))
+					(get-game-details await game-ids))
+			 )
+		))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
@@ -537,6 +561,11 @@
                         ")"))
 
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_alternative_names ("
+                        " id INTEGER PRIMARY KEY,"
+                        " data TEXT"
+                        ")"))
+
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_covers ("
                         " id INTEGER PRIMARY KEY,"
                         " data TEXT"
                         ")"))

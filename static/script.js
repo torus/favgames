@@ -28,17 +28,41 @@ function onlogin(res) {
 	}
 }
 
+function ajax(method, url, data) {
+	return new Promise((result, reject) => {
+		const httpReq = new XMLHttpRequest()
+		httpReq.onreadystatechange = () => {
+			if (httpReq.readyState === XMLHttpRequest.DONE) {
+				if (httpReq.status === 200) {
+					const data = httpReq.responseText
+					console.log(data)
+					result(data)
+				} else {
+					console.log("Error", httpReq.status)
+					reject(httpReq.status)
+				}
+			} else {
+				console.log("onreadystatechange", httpReq.readyState)
+			}
+		}
+		httpReq.open(method, url)
+		httpReq.setRequestHeader('Content-Type', 'text/json')
+		httpReq.send(JSON.stringify(data))
+	})
+}
+
 function addGame(gameId, buttonId) {
-  let button = $("#" + buttonId)
-  button.attr('disabled', 'disabled')
-  button.text('...')
-  $.ajax({
-    method: 'POST',
-    url: '/add',
-    data: JSON.stringify({game: gameId})
-  }).done(data => {
-    $(button).text("追加済み")
-  })
+	let button = document.querySelector("#" + buttonId)
+	button.setAttribute('disabled', 'disabled')
+	button.innerText = '...'
+
+	ajax('POST', '/add', {game: gameId})
+		.then(data => {
+			button.innerText = "追加済み"
+		})
+		.catch(err => {
+			console.log("ERROR", err)
+		})
 }
 
 function submitProfile(form) {
