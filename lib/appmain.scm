@@ -33,32 +33,32 @@
 
 (define (navbar user-id)
   `(nav (@ (class "navbar")
-		   (role "navigation")
-		   (aria-label "main navigation"))
-		(div (@ (class "navbar-brand"))
-			 (a (@ (class "navbar-item")
-				   (href "/"))
-				(h1 "FAVGAM"))
+           (role "navigation")
+           (aria-label "main navigation"))
+        (div (@ (class "navbar-brand"))
+             (a (@ (class "navbar-item")
+                   (href "/"))
+                (h1 (@ (class "title is-1")) "FAVGAM"))
 
-			 (a (@ (role "button")
-				   (class "navbar-burger")
-				   (aria-label "menu")
-				   (aria-expanded "false")
-				   (data-target "navbarMain"))
-				(span (@ (aria-hidden "true")))
-				(span (@ (aria-hidden "true")))
-				(span (@ (aria-hidden "true"))))
-			 )
+             (a (@ (role "button")
+                   (class "navbar-burger")
+                   (aria-label "menu")
+                   (aria-expanded "false")
+                   (data-target "navbarMain"))
+                (span (@ (aria-hidden "true")))
+                (span (@ (aria-hidden "true")))
+                (span (@ (aria-hidden "true"))))
+             )
 
-		(div (@ (class "navbar-menu"))
-			 (div (@ (class "navbar-start"))
-				  (a (@ (class "navbar-item")
-						(href ,#"/favs/~user-id"))
-					 "おきにいり"))
-			 (div (@ (class "navbar-end"))
-				  (a (@ (class "navbar-item")
-						(href "/profile"))
-					 "プロフィール"))))
+        (div (@ (class "navbar-menu"))
+             (div (@ (class "navbar-start"))
+                  (a (@ (class "navbar-item")
+                        (href ,#"/favs/~user-id"))
+                     "おきにいり"))
+             (div (@ (class "navbar-end"))
+                  (a (@ (class "navbar-item")
+                        (href "/profile"))
+                     "プロフィール"))))
 
 
 
@@ -74,7 +74,7 @@
      (meta (@ (name "description") (content "Share your favorite games!")))
      (meta (@ (name "author") (content "Toru Hisai @ Seaknot Studios GK")))
 
-	 (link (@ (rel "stylesheet") (href "/bulma/css/bulma.css")))
+     (link (@ (rel "stylesheet") (href "/bulma/css/bulma.css")))
 
      (title ,title)
 )
@@ -83,22 +83,22 @@
      (script (@ (async "async") (defer "defer") (crossorigin "anonymous")
                 (src "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.3&appId=468063727261207&autoLogAppEvents=1")) "")
 
-	 ,(navbar user-id)
+     ,(navbar user-id)
 
 
 
 
-	 (div (@ (class "container"))
-		  ,@children)
+     (div (@ (class "container"))
+          ,@children)
 
      (script (@ (src "/static/script.js")) "")
-	 (script (@ (defer "defer")
-				(src "https://use.fontawesome.com/releases/v5.14.0/js/all.js")))
+     (script (@ (defer "defer")
+                (src "https://use.fontawesome.com/releases/v5.14.0/js/all.js")))
 
 
 
 
-	 )))
+     )))
 
 
 
@@ -119,6 +119,9 @@
 
 (define (cdr-or-empty x)
   (if (pair? x) (cdr x) #()))
+
+(define (cdr-or-false x)
+  (if (pair? x) (cdr x) #f))
 
 (define (search-result-entry await user-id search-key)
   (lambda (json)
@@ -144,7 +147,7 @@
                                         "/v4/games/"
                                         #"search \"~search-key\"; fields id,alternative_names,name,url;"
                                         :client-id twitch-clinet-id
-										:authorization #"Bearer ~twitch-access-token"
+                                        :authorization #"Bearer ~twitch-access-token"
                                         :secure #t
                                         )))
                  `((p ,#"Search requested: ~search-key")
@@ -207,7 +210,7 @@
                      (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
-											 "おきにいりゲーム"
+                                             "おきにいりゲーム"
                                              (get-user-id-from-cookie await req)
                                              (home-page await search-key user-id)
                                              ))))))))))
@@ -225,13 +228,14 @@
   (if (null? id-list)
       ()
       (await (^[]
+               (print #"Calling API: ~end-point ~id-list")
                (let-values (((status header body)
                              (let ((ids (string-join (map x->string id-list) ", ")))
                                (http-post "api.igdb.com"
                                           #"/v4~end-point"
                                           #"fields *; where id = (~ids);"
                                           :client-id twitch-clinet-id
-										  :authorization #"Bearer ~twitch-access-token"
+                                          :authorization #"Bearer ~twitch-access-token"
                                           :secure #t
                                           ))))
                  (if (equal? status "200")
@@ -239,8 +243,10 @@
                        (vector->list (vector-map (^j
                                                   (let ((game-id (cdr (assoc "id" j))))
                                                     (cons game-id j))) json)))
-                     (raise (list status body)
-                      ))
+                     (begin
+                       (print #"API Error: ~end-point ~id-list ~|status|:\n~body")
+                       ())
+                     )
                  )))))
 
 (define (get-data-from-cache await table id)
@@ -298,7 +304,7 @@
   (let*-values (((alist-cache missing-ids)
                  (get-data-from-cache/missing-ids await "cache_covers" ids))
                 ((alist-igdb)
-                 (get-data-from-igdb await "/covers/" missing-ids)))
+                 (get-data-from-igdb await "/covers/" (filter (^x x) missing-ids))))
     (put-data-to-cache await "cache_covers" alist-igdb)
     (append alist-cache alist-igdb)))
 
@@ -318,41 +324,53 @@
 
 (define (render-game-title-with-link await game-detail)
   `(a (@ (href ,(cdr-or-empty (assoc "url" game-detail)))
-		 (target "_blank")
-		 (rel "noopener noreferrer"))
-	  ,(get-display-name await game-detail)))
+         (target "_blank")
+         (rel "noopener noreferrer"))
+      ,(get-display-name await game-detail)))
 
 (define (image-url image-id)
-  #"https://images.igdb.com/igdb/image/upload/t_cover_small/~|image-id|.jpg")
+  #"https://images.igdb.com/igdb/image/upload/t_cover_big/~|image-id|.jpg")
 
 (define (render-fav-entry await game-detail)
   `((figure (@ (class "image is-3x4"))
-			,(let* ((cover-id (cdr-or-empty (assoc "cover" game-detail)))
-					(covers (get-covers await (list cover-id)))
-					(cover-url (if (pair? covers)
-								   (let ((id (cdr (assoc "image_id" (car covers)))))
-									 (image-url id))
-								   "/static/noimage.png")))
-			   `(img (@ (src ,cover-url)))))
-	(p ,(render-game-title-with-link await game-detail))))
+            ,(let* ((cover-id (cdr-or-false (assoc "cover" game-detail)))
+                    (covers (if (not cover-id)
+                                #f
+                                (get-covers await (list cover-id))))
+                    (cover-url (if (pair? covers)
+                                   (let ((id (cdr (assoc "image_id" (car covers)))))
+                                     (image-url id))
+                                   "/static/noimage.png")))
+               `(img (@ (src ,cover-url)))))
+    (p ,(render-game-title-with-link await game-detail))))
+
+(define (split-by-6 lst)
+  (if (null? lst)
+      ()
+      (cons
+       (take* lst 6)
+       (split-by-6 (drop* lst 6)))))
 
 (define (render-favs await user-id)
   (let*-values (((rset) (await (cut get-favs user-id)))
                 ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
     (dbi-close rset)
-	(let ((prof (get-profile await user-id)))
-      `((h2 ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
-		(div (@ (class "tile is-ancestor"))
-			 ,@(map (^[game]
-					  (let ((game-id (car game))
-							(game-detail (cdr game)))
-						`(div (@ (class "tile is-parent is-2"))
-							  (div (@ (class "tile is-child box"))
-								   ,(render-fav-entry await game-detail)))
-						))
-					(get-game-details await game-ids))
-			 )
-		))))
+    (let ((prof (get-profile await user-id))
+          (rows (split-by-6 (get-game-details await game-ids))))
+      `((h2 (@ (class "title")) ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
+        (div (@ (class "tile is-vertical"))
+             ,@(map (^[cols]
+
+                      `(div (@ (class "tile is-ancestor"))
+                            ,@(map (^[game]
+                                     (let ((game-id (car game))
+                                           (game-detail (cdr game)))
+                                       `(div (@ (class "tile is-parent is-2"))
+                                             (div (@ (class "tile is-child box"))
+                                                  ,(render-fav-entry await game-detail)))
+                                       ))
+								   cols)))
+                    rows))))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
@@ -362,7 +380,7 @@
                    (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
-											 "おきにいり"
+                                             "おきにいり"
                                              (get-user-id-from-cookie await req)
                                              (render-favs await user-id)))))
                    )))))
@@ -386,41 +404,41 @@
 
 (define (profile-form await user-id)
   (let ((prof (get-profile await user-id)))
-	`((h2 "プロフィールの編集")
+    `((h2 "プロフィールの編集")
       (form (@ (onsubmit "return submitProfile(this)"))
-			(div (@ (class "form-group"))
-				 (label (@ (for "name-input")) "名前")
-				 (input (@ (type "text")
-						   (class "form-control")
-						   (id "name-input")
-						   (aria-describedby "name-help")
-						   (value ,(cdr (assoc 'name prof)))))
-				 (small (@ (id "name-help")
-						   (class "form-text text-muted"))
-						"公開されても良い名前を書いてください。"))
-			(button (@ (type "submit") (class "btn btn-primary")) "保存"))))
+            (div (@ (class "form-group"))
+                 (label (@ (for "name-input")) "名前")
+                 (input (@ (type "text")
+                           (class "form-control")
+                           (id "name-input")
+                           (aria-describedby "name-help")
+                           (value ,(cdr (assoc 'name prof)))))
+                 (small (@ (id "name-help")
+                           (class "form-text text-muted"))
+                        "公開されても良い名前を書いてください。"))
+            (button (@ (type "submit") (class "btn btn-primary")) "保存"))))
   )
 
 (define (get-profile await user-id)
   (await (^[]
-		   (let ((rset (dbi-do *sqlite-conn*
-							   "SELECT name FROM user_profile WHERE user_id = ?"
-							   '() user-id)))
-			 (let ((name (if (zero? (size-of rset))
-							 "ななしさん"
-							 (vector-ref (find-min rset) 0) )))
-			   (acons 'name name ()))
-			 ))))
+           (let ((rset (dbi-do *sqlite-conn*
+                               "SELECT name FROM user_profile WHERE user_id = ?"
+                               '() user-id)))
+             (let ((name (if (zero? (size-of rset))
+                             "ななしさん"
+                             (vector-ref (find-min rset) 0) )))
+               (acons 'name name ()))
+             ))))
 
 (define (profile-page await user-id)
   (let ((prof (get-profile await user-id)))
-	`((h2 "プロフィール")
-	  (p "名前：" ,(cdr (assq 'name prof)))
-	  (p (a (@ (href "/profile/form")) "プロフィールを更新する")))))
+    `((h2 "プロフィール")
+      (p "名前：" ,(cdr (assq 'name prof)))
+      (p (a (@ (href "/profile/form")) "プロフィールを更新する")))))
 
 (define (require-login req)
   (let ((url (request-path req)))
-	`(p (a (@ (href ,#"/login?redirect=~url"))
+    `(p (a (@ (href ,#"/login?redirect=~url"))
            "ログインしてください。"))))
 
 (define-http-handler "/profile"
@@ -433,7 +451,7 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                (sxml:sxml->html
                                 (create-page
-								 "プロフィール"
+                                 "プロフィール"
                                  user-id
                                  (if user-id
                                      (profile-page await user-id)
@@ -449,11 +467,11 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                    (sxml:sxml->html
                                     (create-page
-									 "プロフィールの更新"
+                                     "プロフィールの更新"
                                      (get-user-id-from-cookie await req)
                                      (if user-id
                                          (profile-form await user-id)
-										 (require-login req)))))))))))
+                                         (require-login req)))))))))))
 
 (define-http-handler "/profile/update"
   (with-post-json
@@ -480,10 +498,6 @@
 (define (make-session-key!)
   (let ((key (random-integer #x10000000000000000)))
     (format #f "~16,'0x" key)))
-
-(define-http-handler '(GET) "/login"
-  (^[req app]
-    ))
 
 (define-http-handler "/login"
   (with-post-json
@@ -518,7 +532,7 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                (sxml:sxml->html
                                 (create-page
-								 "ログイン"
+                                 "ログイン"
                                  #f
                                  (fb-login-button)
                                  )))))
@@ -538,7 +552,7 @@
                         " display_name TEXT"
                         ")"))
   (execute-query-tree '("INSERT OR IGNORE INTO users (user_id, display_name)"
-						" VALUES (6502, '6502')"))
+                        " VALUES (6502, '6502')"))
 
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS facebook_user_auths ("
                         " facebook_id INTEGER PRIMARY KEY,"
@@ -575,7 +589,7 @@
                         " name TEXT"
                         ")"))
   (execute-query-tree '("INSERT OR IGNORE INTO user_profile (user_id, name)"
-						" VALUES (6502, '6502')"))
+                        " VALUES (6502, '6502')"))
 
   'ok)
 
@@ -587,7 +601,7 @@
        (respond/ok req (cons "<!DOCTYPE html>"
                              (sxml:sxml->html
                               (create-page
-							   "初期設定"
+                               "初期設定"
                                (get-user-id-from-cookie await req)
                                '(p "done")
                                ))))))))
