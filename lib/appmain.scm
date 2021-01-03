@@ -31,113 +31,84 @@
 ;; Application
 ;;
 
+(define (navbar user-id)
+  `(nav (@ (class "navbar is-success")
+           (role "navigation")
+           (aria-label "main navigation"))
+        (div (@ (class "navbar-brand"))
+             (a (@ (class "navbar-item")
+                   (href "/"))
+                (h1 (@ (class "is-size-3")) "FAVGAM"))
+
+             (a (@ (role "button")
+                   (class "navbar-burger")
+                   (aria-label "menu")
+                   (aria-expanded "false")
+                   (data-target "navbarMain"))
+                (span (@ (aria-hidden "true")))
+                (span (@ (aria-hidden "true")))
+                (span (@ (aria-hidden "true"))))
+             )
+
+        (div (@ (class "navbar-menu"))
+             (div (@ (class "navbar-start"))
+                  ,(if user-id
+                       `(a (@ (class "navbar-item")
+                              (href ,#"/favs/~user-id"))
+                           "おきにいり")
+                       `(a (@ (class "navbar-item")
+                              (href ,#"/login"))
+                           "ログイン・新規登録")))
+             (div (@ (class "navbar-end"))
+                  (a (@ (class "navbar-item")
+                        (href "/profile"))
+                     "プロフィール"))))
+
+
+
+
+)
+
 (define (create-page title user-id . children)
   `(html
     (@ (lang "en"))
     (head
      (meta (@ (charset "utf-8")))
-     (meta (@ (name "viewport") (content "width=device-width, initial-scale=1, shrink-to-fit=no")))
-     (meta (@ (name "description") (content "")))
-     (meta (@ (name "author") (content "Mark Otto, Jacob Thornton, and Bootstrap contributors")))
+     (meta (@ (name "viewport") (content "width=device-width, initial-scale=1")))
+     (meta (@ (name "description") (content "Share your favorite games!")))
+     (meta (@ (name "author") (content "Toru Hisai @ Seaknot Studios GK")))
+
+     (link (@ (rel "stylesheet") (href "/bulma/css/bulma.css")))
+
      (title ,title)
-     (link (@
-            (rel "stylesheet")
-            (integrity "sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T")
-            (href "https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css")
-            (crossorigin "anonymous")))
-     (style
-         (string-append
-          ".bd-placeholder-img {"
-          "  font-size: 1.125rem;"
-          "  text-anchor: middle;"
-          "  -webkit-user-select: none;"
-          "  -moz-user-select: none;"
-          "  -ms-user-select: none;"
-          "  user-select: none;"
-          "}"
-          "@media (min-width: 768px) {"
-          "  .bd-placeholder-img-lg {"
-          "    font-size: 3.5rem;"
-          "  }"
-          "}"
-          ))
-     (link (@ (rel "stylesheet") (href "/static/starter-template.css"))))
+)
     (body
      (div (@ (id "fb-root")) "")
      (script (@ (async "async") (defer "defer") (crossorigin "anonymous")
                 (src "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.3&appId=468063727261207&autoLogAppEvents=1")) "")
-     (nav (@ (class "navbar navbar-expand-md navbar-dark bg-dark fixed-top"))
-          (a (@ (href "/") (class "navbar-brand")) "Favorite Games")
-          (button
-           (@
-            (type "button")
-            (data-toggle "collapse")
-            (data-target "#navbarsExampleDefault")
-            (class "navbar-toggler")
-            (aria-label "Toggle navigation")
-            (aria-expanded "false")
-            (aria-controls "navbarsExampleDefault"))
-           (span (@ (class "navbar-toggler-icon"))))
-          (div (@ (id "navbarsExampleDefault")
-				  (class "collapse navbar-collapse"))
-               (ul (@ (class "navbar-nav"))
-				   (li (@ (class "nav-item"))
-					   (form
-						(@ (class "form-inline my-2 my-lg-0")
-						   (action "/"))
-						(input (@ (type "text") (placeholder "Search") (class "form-control mr-sm-2")
-								  (aria-label "Search")
-								  (name "q")))
-						(button (@ (type "submit") (class "btn btn-secondary my-2 my-sm-0"))
-								"Search")))))
-		  (div (@ (class "collapse navbar-collapse"))
-			   (ul (@ (class "navbar-nav ml-auto dropdown"))
-				   (a (@ (class "nav-link dropdown-toggle")
-						 (data-toggle "dropdown")
-						 (href "#") (role "button")
-						 (aria-haspopup "true") (aria-expanded "false")
-						 (style "padding-left: 9em"))
-					  "○")
-				   (div (@ (class "dropdown-menu"))
-						,(if user-id
-                             `(a (@ (class "dropdown-item")
-									(href "/profile"))
-                                 "プロフィール")
-                             `(a (@ (class "dropdown-item")
-									(href "/login"))
-                                 "ログイン"))
-						,(if user-id
-							 `(a (@ (class "dropdown-item")
-									(href ,#"/favs/~user-id"))
-								 "おきにいり")
-							 `(a (@ (class "dropdown-item disabled")
-									(href "#"))
-								 "おきにいり")
-							 )
-)))
+
+     ,(navbar user-id)
+
+     (div (@ (class "level"))
+          "")
+     (div (@ (class "container"))
+          ,@children)
+
+     (footer (@ (class "footer"))
+             (div (@ (class "content"))
+                  (p (strong "FAVGAM") " by "
+                     (a (@ (href "https://seaknot.dev"))
+                        "Seaknot Studio. ")
+                     ,(fas-icon "gamepad")
+                     " The game database provided by "
+                     (a (@ (href "https://www.igdb.com")) "IGDB."))))
 
 
-)
-     (main
-      (@ (role "main") (class "container"))
-      ,@children)
      (script (@ (src "/static/script.js")) "")
-     (script (@
-              (src "https://code.jquery.com/jquery-3.4.1.min.js")
-              (integrity "sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=")
-              (crossorigin "anonymous"))
+     (script (@ (defer "defer")
+                (src "https://use.fontawesome.com/releases/v5.14.0/js/all.js"))
              "")
-     (script (@
-              (src "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js")
-              (integrity "sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1")
-              (crossorigin "anonymous"))
-             "")
-     (script (@
-              (src "https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js")
-              (integrity "sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM")
-              (crossorigin "anonymous"))
-             "")))
-  )
+     )))
 
 
 
@@ -159,6 +130,9 @@
 (define (cdr-or-empty x)
   (if (pair? x) (cdr x) #()))
 
+(define (cdr-or-false x)
+  (if (pair? x) (cdr x) #f))
+
 (define (search-result-entry await user-id search-key)
   (lambda (json)
     (let ((id (cdr (assoc "id" json)))
@@ -167,13 +141,17 @@
            (td ,(if user-id
                     (let ((button-id #"add-button-~id"))
                       `(button (@ (type "button")
-                                  (class "btn btn-primary text-nowrap")
+                                  (class "button is-primary text-nowrap")
                                   (id ,button-id)
                                   (onclick ,#"addGame(\"~id\", \"~button-id\")"))
                                "おきにいりに追加"))
-                    `(button (@ (type "button") (class "btn btn-primary text-nowrap")
+                    `(button (@ (type "button") (class "button is-primary text-nowrap")
                                 (disabled "disabled"))
                              "おきにいりに追加")))))))
+
+(define (fas-icon name)
+  `(span (@ (class "icon"))
+         (i (@ (class ,#"fas fa-~name")) "")))
 
 (define (home-page await search-key user-id)
   (if (> (string-length search-key) 0)
@@ -183,7 +161,7 @@
                                         "/v4/games/"
                                         #"search \"~search-key\"; fields id,alternative_names,name,url;"
                                         :client-id twitch-clinet-id
-										:authorization #"Bearer ~twitch-access-token"
+                                        :authorization #"Bearer ~twitch-access-token"
                                         :secure #t
                                         )))
                  `((p ,#"Search requested: ~search-key")
@@ -197,13 +175,19 @@
                                                  json)))))
                         `("ERROR"
                           (pre ,body)))))))
-      `((h2 "ゲームを探す")
-        (form
-        (@ (class "form-inline my-2 my-lg-0") (action "/"))
-        (input (@ (type "text") (placeholder "Search") (class "form-control mr-sm-2")
-                  (aria-label "Search")
-                  (name "q")))
-        (button (@ (type "submit") (class "btn btn-secondary my-2 my-sm-0")) "Search")))))
+      `((h2 (@ (class "title")) "ゲームを探す")
+        (form (@ (action "/"))
+              (div (@ (class "field has-addons"))
+                   (div (@ (class "control"))
+                        (input (@ (type "text")
+                                  (placeholder "ゲームタイトル")
+                                  (class "input")
+                                  (aria-label "Search")
+                                  (name "q"))))
+                   (div (@ (class "control"))
+                        (button (@ (type "submit")
+                                   (class "button is-info"))
+                                ,(fas-icon "search"))))))))
 
 ;; curl '' \
 ;; -d 'fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;' \
@@ -246,7 +230,7 @@
                      (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
-											 "おきにいりゲーム"
+                                             "おきにいりゲーム"
                                              (get-user-id-from-cookie await req)
                                              (home-page await search-key user-id)
                                              ))))))))))
@@ -264,13 +248,14 @@
   (if (null? id-list)
       ()
       (await (^[]
+               (print #"Calling API: ~end-point ~id-list")
                (let-values (((status header body)
                              (let ((ids (string-join (map x->string id-list) ", ")))
                                (http-post "api.igdb.com"
                                           #"/v4~end-point"
                                           #"fields *; where id = (~ids);"
                                           :client-id twitch-clinet-id
-										  :authorization #"Bearer ~twitch-access-token"
+                                          :authorization #"Bearer ~twitch-access-token"
                                           :secure #t
                                           ))))
                  (if (equal? status "200")
@@ -278,8 +263,10 @@
                        (vector->list (vector-map (^j
                                                   (let ((game-id (cdr (assoc "id" j))))
                                                     (cons game-id j))) json)))
-                     (raise (list status body)
-                      ))
+                     (begin
+                       (print #"API Error: ~end-point ~id-list ~|status|:\n~body")
+                       ())
+                     )
                  )))))
 
 (define (get-data-from-cache await table id)
@@ -333,6 +320,14 @@
     (put-data-to-cache await "cache_alternative_names" alt-name-alist-igdb)
     (append alt-name-alist-cache alt-name-alist-igdb)))
 
+(define (get-covers await ids)
+  (let*-values (((alist-cache missing-ids)
+                 (get-data-from-cache/missing-ids await "cache_covers" ids))
+                ((alist-igdb)
+                 (get-data-from-igdb await "/covers/" (filter (^x x) missing-ids))))
+    (put-data-to-cache await "cache_covers" alist-igdb)
+    (append alist-cache alist-igdb)))
+
 ;;
 
 (define (get-display-name await game-detail)
@@ -349,25 +344,53 @@
 
 (define (render-game-title-with-link await game-detail)
   `(a (@ (href ,(cdr-or-empty (assoc "url" game-detail)))
-		 (target "_blank")
-		 (rel "noopener noreferrer"))
-	  ,(get-display-name await game-detail)))
+         (target "_blank")
+         (rel "noopener noreferrer"))
+      ,(get-display-name await game-detail)))
+
+(define (image-url image-id)
+  #"https://images.igdb.com/igdb/image/upload/t_cover_big/~|image-id|.jpg")
 
 (define (render-fav-entry await game-detail)
-  `(tr (td ,(render-game-title-with-link await game-detail))))
+  `((figure (@ (class "image is-3x4"))
+            ,(let* ((cover-id (cdr-or-false (assoc "cover" game-detail)))
+                    (covers (if (not cover-id)
+                                #f
+                                (get-covers await (list cover-id))))
+                    (cover-url (if (pair? covers)
+                                   (let ((id (cdr (assoc "image_id" (car covers)))))
+                                     (image-url id))
+                                   "/static/noimage.png")))
+               `(img (@ (src ,cover-url)))))
+    (p ,(render-game-title-with-link await game-detail))))
+
+(define (split-by-6 lst)
+  (if (null? lst)
+      ()
+      (cons
+       (take* lst 6)
+       (split-by-6 (drop* lst 6)))))
 
 (define (render-favs await user-id)
   (let*-values (((rset) (await (cut get-favs user-id)))
                 ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
     (dbi-close rset)
-	(let ((prof (get-profile await user-id)))
-    `((h2 ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
-      (table (@ (class "table"))
-            ,@(map (^[game]
-                     (let ((game-id (car game))
-                           (game-detail (cdr game)))
-                       (render-fav-entry await game-detail)))
-                   (get-game-details await game-ids)))))))
+    (let ((prof (get-profile await user-id))
+          (rows (split-by-6 (get-game-details await game-ids))))
+      `((h2 (@ (class "title")) ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
+        (div (@ (class "tile is-vertical"))
+             ,@(map (^[cols]
+
+                      `(div (@ (class "tile is-ancestor"))
+                            ,@(map (^[game]
+                                     (let ((game-id (car game))
+                                           (game-detail (cdr game)))
+                                       `(div (@ (class "tile is-parent is-2"))
+                                             (div (@ (class "tile is-child box"))
+                                                  ,(render-fav-entry await game-detail)))
+                                       ))
+                                   cols)))
+                    rows))))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
@@ -377,7 +400,7 @@
                    (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
-											 "おきにいり"
+                                             "おきにいり"
                                              (get-user-id-from-cookie await req)
                                              (render-favs await user-id)))))
                    )))))
@@ -401,37 +424,48 @@
 
 (define (profile-form await user-id)
   (let ((prof (get-profile await user-id)))
-	`((h2 "プロフィールの編集")
+    `((h2 (@ (class "title")) "プロフィールの編集")
       (form (@ (onsubmit "return submitProfile(this)"))
-			(div (@ (class "form-group"))
-				 (label (@ (for "name-input")) "名前")
-				 (input (@ (type "text")
-						   (class "form-control")
-						   (id "name-input")
-						   (aria-describedby "name-help")
-						   (value ,(cdr (assoc 'name prof)))))
-				 (small (@ (id "name-help")
-						   (class "form-text text-muted"))
-						"公開されても良い名前を書いてください。"))
-			(button (@ (type "submit") (class "btn btn-primary")) "保存"))))
+            (div (@ (class "field"))
+                 (label (@ (class "label")
+                           (for "name-input")) "名前")
+                 (div (@ (class "control"))
+                      (input (@ (type "text")
+                                (class "input")
+                                (id "name-input")
+                                (aria-describedby "name-help")
+                                (value ,(cdr (assoc 'name prof))))))
+                 (p (@ (id "name-help")
+                       (class "help"))
+                    "公開されても良い名前を書いてください。"))
+            (div (@ (class "field"))
+                 (div (@ (class "control"))
+                      (button (@ (type "submit")
+                                 (class "button is-primary text-nowrap"))
+                              "保存"))))))
   )
 
 (define (get-profile await user-id)
   (await (^[]
-		   (let ((rset (dbi-do *sqlite-conn*
-							   "SELECT name FROM user_profile WHERE user_id = ?"
-							   '() user-id)))
-			 (let ((name (if (zero? (size-of rset))
-							 "ななしさん"
-							 (vector-ref (find-min rset) 0) )))
-			   (acons 'name name ()))
-			 ))))
+           (let ((rset (dbi-do *sqlite-conn*
+                               "SELECT name FROM user_profile WHERE user_id = ?"
+                               '() user-id)))
+             (let ((name (if (zero? (size-of rset))
+                             "ななしさん"
+                             (vector-ref (find-min rset) 0) )))
+               (acons 'name name ()))
+             ))))
 
 (define (profile-page await user-id)
   (let ((prof (get-profile await user-id)))
-	`((h2 "プロフィール")
-	  (p "名前：" ,(cdr (assq 'name prof)))
-	  (p (a (@ (href "/profile/form")) "プロフィールを更新する")))))
+    `((h2 "プロフィール")
+      (p "名前：" ,(cdr (assq 'name prof)))
+      (p (a (@ (href "/profile/form")) "プロフィールを更新する")))))
+
+(define (require-login req)
+  (let ((url (request-path req)))
+    `(p (a (@ (href ,#"/login?redirect=~url"))
+           "ログインしてください。"))))
 
 (define-http-handler "/profile"
   (^[req app]
@@ -443,12 +477,11 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                (sxml:sxml->html
                                 (create-page
-								 "プロフィール"
+                                 "プロフィール"
                                  user-id
                                  (if user-id
                                      (profile-page await user-id)
-                                     '(p (a (@ (href "/login")
-                                               "ログインしてください。")))))))))))))
+                                     (require-login req)))))))))))
 
 (define-http-handler "/profile/form"
   (^[req app]
@@ -460,12 +493,11 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                    (sxml:sxml->html
                                     (create-page
-									 "プロフィールの更新"
+                                     "プロフィールの更新"
                                      (get-user-id-from-cookie await req)
                                      (if user-id
                                          (profile-form await user-id)
-                                         '(p (a (@ (href "/login")
-                                                   "ログインしてください。")))))))))))))
+                                         (require-login req)))))))))))
 
 (define-http-handler "/profile/update"
   (with-post-json
@@ -487,14 +519,11 @@
               (respond/ok req "not logged in"))))))))
 
 (define-http-handler #/^\/static\// (file-handler))
+(define-http-handler #/^\/bulma\// (file-handler :root "./node_modules"))
 
 (define (make-session-key!)
   (let ((key (random-integer #x10000000000000000)))
     (format #f "~16,'0x" key)))
-
-(define-http-handler '(GET) "/login"
-  (^[req app]
-    ))
 
 (define-http-handler "/login"
   (with-post-json
@@ -529,7 +558,7 @@
          (respond/ok req (cons "<!DOCTYPE html>"
                                (sxml:sxml->html
                                 (create-page
-								 "ログイン"
+                                 "ログイン"
                                  #f
                                  (fb-login-button)
                                  )))))
@@ -549,7 +578,7 @@
                         " display_name TEXT"
                         ")"))
   (execute-query-tree '("INSERT OR IGNORE INTO users (user_id, display_name)"
-						" VALUES (6502, '6502')"))
+                        " VALUES (6502, '6502')"))
 
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS facebook_user_auths ("
                         " facebook_id INTEGER PRIMARY KEY,"
@@ -576,12 +605,17 @@
                         " data TEXT"
                         ")"))
 
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS cache_covers ("
+                        " id INTEGER PRIMARY KEY,"
+                        " data TEXT"
+                        ")"))
+
   (execute-query-tree '("CREATE TABLE IF NOT EXISTS user_profile ("
                         " user_id INTEGER PRIMARY KEY,"
                         " name TEXT"
                         ")"))
   (execute-query-tree '("INSERT OR IGNORE INTO user_profile (user_id, name)"
-						" VALUES (6502, '6502')"))
+                        " VALUES (6502, '6502')"))
 
   'ok)
 
@@ -593,7 +627,7 @@
        (respond/ok req (cons "<!DOCTYPE html>"
                              (sxml:sxml->html
                               (create-page
-							   "初期設定"
+                               "初期設定"
                                (get-user-id-from-cookie await req)
                                '(p "done")
                                ))))))))

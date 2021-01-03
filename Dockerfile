@@ -11,4 +11,4 @@ RUN npm install -g nodemon
 RUN apt-get install -y libsqlite3-dev
 
 WORKDIR /code
-CMD make run
+CMD make build && make run
