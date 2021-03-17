@@ -109,6 +109,14 @@
      (script (@ (defer "defer")
                 (src "https://use.fontawesome.com/releases/v5.14.0/js/all.js"))
              "")
+
+     ;; <!-- Global site tag (gtag.js) - Google Analytics -->
+     (script (@ (src "https://www.googletagmanager.com/gtag/js?id=UA-158830523-1")) "")
+     (script "  window.dataLayer = window.dataLayer || [];"
+             "  function gtag(){dataLayer.push(arguments);}"
+             "  gtag('js', new Date());"
+             "  gtag('config', 'UA-158830523-1');"
+             )
      )))
 
 
