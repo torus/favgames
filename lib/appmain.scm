@@ -20,7 +20,8 @@
 
 (add-load-path "./gauche-rheingau/lib/")
 (use rheingau)
-(rheingau-use makiki)
+(use makiki)
+;(rheingau-use makiki)
 (add-load-path "./gosh-modules/dbd-sqlite3")
 (use dbd.sqlite3)
 

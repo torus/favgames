@@ -6,7 +6,9 @@ services:
       - .:/code
       - logvolume01:/var/log
     expose:
-      - "2225"
+      - "2222"
+    ports:
+      - "2225:2222"
     environment:
       VIRTUAL_HOST: favgam.seaknot.dev
       LETSENCRYPT_HOST: favgam.seaknot.dev

@@ -1,8 +1,8 @@
 (barrel
- (name "violet")
+ (name "favgam")
  (version "0.0.1")
  (dependencies
-  (from-git "makiki"
+  #;(from-git "makiki"
             (repo "https://github.com/shirok/Gauche-makiki.git")
             (branch "use-connection"))
   (from-git/build "dbd-sqlite3"
