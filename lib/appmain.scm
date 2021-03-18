@@ -18,10 +18,8 @@
 (use sxml.tools)
 (use text.tree)
 
-(add-load-path "./gauche-rheingau/lib/")
-(use rheingau)
 (use makiki)
-;(rheingau-use makiki)
+;; rheingau-use doesn't work here.. :(
 (add-load-path "./gosh-modules/dbd-sqlite3")
 (use dbd.sqlite3)
 
