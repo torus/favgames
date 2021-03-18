@@ -168,25 +168,39 @@
              (pre ,body))))))
 
 (define (search-input pre-input)
-  `(form (@ (action "/"))
-         (div (@ (class "field has-addons"))
-              (div (@ (class "control"))
-                   (input (@ (type "text")
-                             (placeholder "ゲームタイトル")
-                             (class "input")
-                             (aria-label "Search")
-                             (name "q")
-                             (value ,pre-input))))
-              (div (@ (class "control"))
-                   (button (@ (type "submit")
-                              (class "button is-info"))
-                           ,(fas-icon "search"))))))
+  `(div (@ (class "block"))
+        (form (@ (action "/"))
+              (div (@ (class "field has-addons"))
+                   (div (@ (class "control"))
+                        (input (@ (type "text")
+                                  (placeholder "ゲームタイトル")
+                                  (class "input")
+                                  (aria-label "Search")
+                                  (name "q")
+                                  (value ,pre-input))))
+                   (div (@ (class "control"))
+                        (button (@ (type "submit")
+                                   (class "button is-info"))
+                                ,(fas-icon "search")))))))
+
+(define (newly-added-games await)
+  (let* ((rset (dbi-do *sqlite-conn*
+                       "SELECT game_id FROM games ORDER BY added_at DESC LIMIT 18"
+                       '()))
+         (game-ids (reverse (map (^[row] (vector-ref row 0)) rset))))
+
+    `(div (@ (class "block"))
+          (h3 (@ (class "title is-3")) "最近追加されたゲーム")
+          ,(render-games-in-tile await game-ids)
+
+      )))
 
 (define (home-page await search-key user-id)
-  `((h2 (@ (class "title is-2")) "ゲームを探す")
+  `((h3 (@ (class "title is-3")) "ゲームを探す")
     ,(if (> (string-length search-key) 0)
       (await (^[] (search-games await user-id search-key)))
-      (search-input ""))))
+      `(,(search-input "")
+        ,(newly-added-games await)))))
 
 ;; curl '' \
 ;; -d 'fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;' \
@@ -369,6 +383,22 @@
       (cons
        (take* lst 6)
        (split-by-6 (drop* lst 6)))))
+
+(define (render-games-in-tile await game-ids)
+  (let ((rows (split-by-6 (get-game-details await game-ids))))
+    `(div (@ (class "tile is-vertical"))
+          ,@(map (^[cols]
+                   `(div (@ (class "tile is-ancestor"))
+                         ,@(map (^[game]
+                                  (let ((game-id (car game))
+                                        (game-detail (cdr game)))
+                                    `(div (@ (class "tile is-parent is-2"))
+                                          (div (@ (class "tile is-child box"))
+                                               ,(render-fav-entry await game-detail)))
+                                    ))
+                                cols)))
+                 rows)))
+  )
 
 (define (render-favs await user-id)
   (let*-values (((rset) (await (cut get-favs user-id)))
