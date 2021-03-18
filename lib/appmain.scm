@@ -45,13 +45,13 @@
                    (class "navbar-burger")
                    (aria-label "menu")
                    (aria-expanded "false")
-                   (data-target "navbarMain"))
-                (span (@ (aria-hidden "true")))
-                (span (@ (aria-hidden "true")))
-                (span (@ (aria-hidden "true"))))
+                   (data-target "navbar-main"))
+                (span (@ (aria-hidden "true")) "")
+                (span (@ (aria-hidden "true")) "")
+                (span (@ (aria-hidden "true"))) "")
              )
 
-        (div (@ (class "navbar-menu"))
+        (div (@ (class "navbar-menu") (id "navbar-main"))
              (div (@ (class "navbar-start"))
                   ,(if user-id
                        `(a (@ (class "navbar-item")
@@ -68,12 +68,7 @@
              (div (@ (class "navbar-end"))
                   (a (@ (class "navbar-item")
                         (href "/profile"))
-                     "プロフィール"))))
-
-
-
-
-)
+                     "プロフィール")))))
 
 (define (create-page title user-id . children)
   `(html
@@ -123,8 +118,6 @@
              "  gtag('config', 'UA-158830523-1');"
              )
      )))
-
-
 
 (define (get-random)
   (call-with-input-file "/dev/random"
