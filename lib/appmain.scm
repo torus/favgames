@@ -417,6 +417,9 @@
           (dbi-do *sqlite-conn*
                   "INSERT OR IGNORE INTO favs (game_id, user_id) VALUES (?, ?)"
                   '() game-id user-id)
+          (dbi-do *sqlite-conn*
+                  "INSERT OR REPLACE INTO games (game_id, added_at) VALUES (?, strftime('%s', 'now'))"
+                  '() game-id)
 
           (respond/ok req #"OK")
           ))))))
@@ -616,6 +619,14 @@
   (execute-query-tree '("INSERT OR IGNORE INTO user_profile (user_id, name)"
                         " VALUES (6502, '6502')"))
 
+
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS games ("
+                        " game_id INTEGER PRIMARY KEY,"
+                        " added_at INTEGER"
+                        ")"))
+  (execute-query-tree '("CREATE INDEX IF NOT EXISTS games_added_at ON games ("
+                        " added_at"
+                        ")"))
   'ok)
 
 (define-http-handler "/admin/setup"
