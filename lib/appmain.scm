@@ -119,17 +119,6 @@
              )
      )))
 
-(define (get-random)
-  (call-with-input-file "/dev/random"
-    (^p
-     (let* ((ch (read-char p))
-            (result (if (char? ch)
-                        (let ((num (char->integer ch)))
-                          (thread-sleep! (/ num 1000))
-                          num)
-                        (x->string ch))))
-       result))))
-
 (define (fetch-alt-names await vec)
   (let ((alt-name-alist (get-alt-names await (vector->list vec))))
     (map (^[entry] (let ((json (cdr entry))) (cdr (assoc "name" json)))) alt-name-alist)))
@@ -160,41 +149,46 @@
   `(span (@ (class "icon"))
          (i (@ (class ,#"fas fa-~name")) "")))
 
+(define (search-games await user-id search-key)
+  (let-values (((status header body)
+                (http-post "api.igdb.com"
+                           "/v4/games/"
+                           #"search \"~search-key\"; fields id,alternative_names,name,url;"
+                           :client-id twitch-clinet-id
+                           :authorization #"Bearer ~twitch-access-token"
+                           :secure #t
+                           )))
+    `(,(search-input search-key)
+      ,(if (equal? status "200")
+           (let ((json (parse-json-string body)))
+             `(table (@ (class "table"))
+                      (tr (th "名前") (td ""))
+                      ,(vector->list
+                        (vector-map (search-result-entry await user-id search-key)
+                                    json))))
+           `("ERROR"
+             (pre ,body))))))
+
+(define (search-input pre-input)
+  `(form (@ (action "/"))
+         (div (@ (class "field has-addons"))
+              (div (@ (class "control"))
+                   (input (@ (type "text")
+                             (placeholder "ゲームタイトル")
+                             (class "input")
+                             (aria-label "Search")
+                             (name "q")
+                             (value ,pre-input))))
+              (div (@ (class "control"))
+                   (button (@ (type "submit")
+                              (class "button is-info"))
+                           ,(fas-icon "search"))))))
+
 (define (home-page await search-key user-id)
-  (if (> (string-length search-key) 0)
-      (await (lambda ()
-               (let-values (((status header body)
-                             (http-post "api.igdb.com"
-                                        "/v4/games/"
-                                        #"search \"~search-key\"; fields id,alternative_names,name,url;"
-                                        :client-id twitch-clinet-id
-                                        :authorization #"Bearer ~twitch-access-token"
-                                        :secure #t
-                                        )))
-                 `((p ,#"Search requested: ~search-key")
-                   ,(if (equal? status "200")
-                        (let ((json (parse-json-string body)))
-                          `((h2 "検索結果")
-                            (table (@ (class "table"))
-                                   (tr (th "名前") (td ""))
-                                   ,(vector->list
-                                     (vector-map (search-result-entry await user-id search-key)
-                                                 json)))))
-                        `("ERROR"
-                          (pre ,body)))))))
-      `((h2 (@ (class "title")) "ゲームを探す")
-        (form (@ (action "/"))
-              (div (@ (class "field has-addons"))
-                   (div (@ (class "control"))
-                        (input (@ (type "text")
-                                  (placeholder "ゲームタイトル")
-                                  (class "input")
-                                  (aria-label "Search")
-                                  (name "q"))))
-                   (div (@ (class "control"))
-                        (button (@ (type "submit")
-                                   (class "button is-info"))
-                                ,(fas-icon "search"))))))))
+  `((h2 (@ (class "title is-2")) "ゲームを探す")
+    ,(if (> (string-length search-key) 0)
+      (await (^[] (search-games await user-id search-key)))
+      (search-input ""))))
 
 ;; curl '' \
 ;; -d 'fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;' \
