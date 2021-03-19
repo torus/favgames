@@ -183,15 +183,22 @@
                                    (class "button is-info"))
                                 ,(fas-icon "search")))))))
 
-(define (newly-added-games await)
+(define (newly-added-games await user-id)
   (let* ((rset (dbi-do *sqlite-conn*
-                       "SELECT game_id FROM games ORDER BY added_at DESC LIMIT 18"
-                       '()))
-         (game-ids (reverse (map (^[row] (vector-ref row 0)) rset))))
+                       (string-append
+                        "SELECT games.game_id, x.user_id owned FROM games"
+                        " LEFT OUTER JOIN"
+                        " (SELECT game_id, user_id FROM favs WHERE user_id = ?) x"
+                        " ON games.game_id = x.game_id"
+                        " ORDER BY added_at DESC LIMIT 18")
+                       '() user-id))
+         (game-ids (reverse (map (^[row] (vector-ref row 0)) rset)))
+         (owneds (reverse (map (^[row] (cons (vector-ref row 0)
+                                             (vector-ref row 1))) rset))))
 
     `(div (@ (class "block"))
           (h3 (@ (class "title is-3")) "最近追加されたゲーム")
-          ,(render-games-in-tile await game-ids)
+          ,(render-games-in-tile await game-ids owneds)
 
       )))
 
@@ -200,7 +207,7 @@
     ,(if (> (string-length search-key) 0)
       (await (^[] (search-games await user-id search-key)))
       `(,(search-input "")
-        ,(newly-added-games await)))))
+        ,(newly-added-games await user-id)))))
 
 ;; curl '' \
 ;; -d 'fields alternative_name,character,collection,company,description,game,name,person,platform,popularity,published_at,test_dummy,theme;' \
@@ -384,7 +391,7 @@
        (take* lst 6)
        (split-by-6 (drop* lst 6)))))
 
-(define (render-games-in-tile await game-ids)
+(define (render-games-in-tile await game-ids owneds)
   (let ((rows (split-by-6 (get-game-details await game-ids))))
     `(div (@ (class "tile is-vertical"))
           ,@(map (^[cols]
@@ -394,19 +401,22 @@
                                         (game-detail (cdr game)))
                                     `(div (@ (class "tile is-parent is-2"))
                                           (div (@ (class "tile is-child box"))
-                                               ,(render-fav-entry await game-detail)))
+                                               ,(render-fav-entry await game-detail)
+                                               ,(if (cdr (assq game-id owneds))
+                                                    "O" "-")))
                                     ))
                                 cols)))
                  rows)))
   )
 
 (define (render-favs await user-id)
-  (let*-values (((rset) (await (cut get-favs user-id)))
-                ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
+  (let* ((rset (await (cut get-favs user-id)))
+         (game-ids (map (^[row] (vector-ref row 0)) rset))
+         (owneds (map (^[row] (cons (vector-ref row 0) #t)) rset)))
     (dbi-close rset)
     (let ((prof (get-profile await user-id)))
       `((h2 (@ (class "title")) ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
-        ,(render-games-in-tile await game-ids)))))
+        ,(render-games-in-tile await game-ids owneds)))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
