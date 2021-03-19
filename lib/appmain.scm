@@ -404,22 +404,9 @@
   (let*-values (((rset) (await (cut get-favs user-id)))
                 ((game-ids) (map (^[row] (vector-ref row 0)) rset)))
     (dbi-close rset)
-    (let ((prof (get-profile await user-id))
-          (rows (split-by-6 (get-game-details await game-ids))))
+    (let ((prof (get-profile await user-id)))
       `((h2 (@ (class "title")) ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
-        (div (@ (class "tile is-vertical"))
-             ,@(map (^[cols]
-
-                      `(div (@ (class "tile is-ancestor"))
-                            ,@(map (^[game]
-                                     (let ((game-id (car game))
-                                           (game-detail (cdr game)))
-                                       `(div (@ (class "tile is-parent is-2"))
-                                             (div (@ (class "tile is-child box"))
-                                                  ,(render-fav-entry await game-detail)))
-                                       ))
-                                   cols)))
-                    rows))))))
+        ,(render-games-in-tile await game-ids)))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
