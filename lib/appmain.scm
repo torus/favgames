@@ -184,23 +184,28 @@
                                 ,(fas-icon "search")))))))
 
 (define (newly-added-games await user-id)
-  (let* ((rset (dbi-do *sqlite-conn*
+  (let* ((rset
+          (if user-id
+              (dbi-do *sqlite-conn*
                        (string-append
                         "SELECT games.game_id, x.user_id owned FROM games"
                         " LEFT OUTER JOIN"
                         " (SELECT game_id, user_id FROM favs WHERE user_id = ?) x"
                         " ON games.game_id = x.game_id"
                         " ORDER BY added_at DESC LIMIT 18")
-                       '() user-id))
+                       '() user-id)
+              (dbi-do *sqlite-conn*
+                       (string-append
+                        "SELECT games.game_id, NULL owned FROM games"
+                        " ORDER BY added_at DESC LIMIT 18")
+                       '())))
          (game-ids (reverse (map (^[row] (vector-ref row 0)) rset)))
          (owneds (reverse (map (^[row] (cons (vector-ref row 0)
                                              (vector-ref row 1))) rset))))
 
     `(div (@ (class "block"))
           (h3 (@ (class "title is-3")) "最近追加されたゲーム")
-          ,(render-games-in-tile await game-ids owneds)
-
-      )))
+          ,(render-games-in-tile await game-ids owneds))))
 
 (define (home-page await search-key user-id)
   `((h3 (@ (class "title is-3")) "ゲームを探す")
@@ -392,6 +397,13 @@
        (split-by-6 (drop* lst 6)))))
 
 (define (render-games-in-tile await game-ids owneds)
+  (define owned?
+    (cond ((pair? owneds)
+           (lambda (game-id) (cdr (assq game-id owneds))))
+          (owneds
+           (lambda (game-id) #t))
+          (else
+           (lambda (game-id) #f))))
   (let ((rows (split-by-6 (get-game-details await game-ids))))
     `(div (@ (class "tile is-vertical"))
           ,@(map (^[cols]
@@ -402,17 +414,17 @@
                                     `(div (@ (class "tile is-parent is-2"))
                                           (div (@ (class "tile is-child box"))
                                                ,(render-fav-entry await game-detail)
-                                               ,(if (cdr (assq game-id owneds))
+                                               ,(if (owned? game-id)
                                                     "O" "-")))
                                     ))
                                 cols)))
                  rows)))
   )
 
-(define (render-favs await user-id)
+(define (render-favs await user-id visiters-user-id)
   (let* ((rset (await (cut get-favs user-id)))
          (game-ids (map (^[row] (vector-ref row 0)) rset))
-         (owneds (map (^[row] (cons (vector-ref row 0) #t)) rset)))
+         (owneds (if (eq? user-id visiters-user-id) #t #f)))
     (dbi-close rset)
     (let ((prof (get-profile await user-id)))
       `((h2 (@ (class "title")) ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
@@ -423,12 +435,16 @@
     (let-params req ([user-id "p:1" :convert x->integer])
                 (violet-async
                  (^[await]
-                   (respond/ok req (cons "<!DOCTYPE html>"
+                   (let* ((session-cookie (request-cookie-ref req "sesskey"))
+                          (visiters-user-id
+                           (and session-cookie
+                                (await (cut get-session (cadr session-cookie))))))
+                     (respond/ok req (cons "<!DOCTYPE html>"
                                            (sxml:sxml->html
                                             (create-page
                                              "おきにいり"
                                              (get-user-id-from-cookie await req)
-                                             (render-favs await user-id)))))
+                                             (render-favs await user-id visiters-user-id))))))
                    )))))
 
 (define-http-handler "/add"
