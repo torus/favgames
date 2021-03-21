@@ -127,6 +127,23 @@
 (define (cdr-or-false x)
   (if (pair? x) (cdr x) #f))
 
+(define (already-added-button)
+  `(button (@ (type "button") (class "button is-primary text-nowrap")
+              (disabled "disabled"))
+           "追加済み"))
+
+(define (add-button game-id user-id)
+  (if user-id
+      (let ((button-id #"add-button-~game-id"))
+        `(button (@ (type "button")
+                    (class "button is-primary text-nowrap")
+                    (id ,button-id)
+                    (onclick ,#"addGame(\"~game-id\", \"~button-id\")"))
+                 "おきにいりに追加"))
+      `(button (@ (type "button") (class "button is-primary text-nowrap")
+                  (disabled "disabled"))
+               "おきにいりに追加")))
+
 (define (search-result-entry await user-id search-key)
   (lambda (json)
     (let ((id (cdr (assoc "id" json)))
@@ -205,7 +222,7 @@
 
     `(div (@ (class "block"))
           (h3 (@ (class "title is-3")) "最近追加されたゲーム")
-          ,(render-games-in-tile await game-ids owneds))))
+          ,(render-games-in-tile await game-ids owneds user-id))))
 
 (define (home-page await search-key user-id)
   `((h3 (@ (class "title is-3")) "ゲームを探す")
@@ -396,7 +413,7 @@
        (take* lst 6)
        (split-by-6 (drop* lst 6)))))
 
-(define (render-games-in-tile await game-ids owneds)
+(define (render-games-in-tile await game-ids owneds visiters-user-id)
   (define owned?
     (cond ((pair? owneds)
            (lambda (game-id) (cdr (assq game-id owneds))))
@@ -415,7 +432,9 @@
                                           (div (@ (class "tile is-child box"))
                                                ,(render-fav-entry await game-detail)
                                                ,(if (owned? game-id)
-                                                    "O" "-")))
+                                                    (already-added-button)
+                                                    (add-button game-id visiters-user-id)
+                                                    )))
                                     ))
                                 cols)))
                  rows)))
@@ -428,7 +447,7 @@
     (dbi-close rset)
     (let ((prof (get-profile await user-id)))
       `((h2 (@ (class "title")) ,#"~(cdr (assoc 'name prof)) のおきにいりゲーム")
-        ,(render-games-in-tile await game-ids owneds)))))
+        ,(render-games-in-tile await game-ids owneds visiters-user-id)))))
 
 (define-http-handler #/^\/favs\/(\d+)/
   (^[req app]
@@ -459,7 +478,7 @@
                (game-id (cdr (assoc "game" json))))
           (dbi-do *sqlite-conn*
                   "INSERT OR IGNORE INTO favs (game_id, user_id) VALUES (?, ?)"
-                  '() game-id user-id)
+                  '() #?=game-id #?=user-id)
           (dbi-do *sqlite-conn*
                   "INSERT OR REPLACE INTO games (game_id, added_at) VALUES (?, strftime('%s', 'now'))"
                   '() game-id)
