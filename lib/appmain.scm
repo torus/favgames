@@ -689,6 +689,31 @@
   (execute-query-tree '("CREATE INDEX IF NOT EXISTS games_added_at ON games ("
                         " added_at"
                         ")"))
+
+  (execute-query-tree '("CREATE TABLE IF NOT EXISTS schema_updates ("
+                        " version INTEGER PRIMARY KEY,"
+						" date INTEGER NOT NULL"
+                        ")"))
+  (let ((rset (dbi-do *sqlite-conn*
+                         "SELECT version FROM schema_updates ORDER BY version DESC LIMIT 1"
+                         '())))
+	(if (zero? (size-of rset))
+		(begin
+		  (execute-query-tree '("CREATE TABLE favs_new ("
+								" game_id INTEGER NOT NULL,"
+								" user_id INTEGER NOT NULL"
+								")"))
+		  (execute-query-tree '("INSERT INTO favs_new (game_id, user_id)"
+								" SELECT * FROM favs"))
+		  (execute-query-tree '("DROP TABLE favs"))
+		  (execute-query-tree '("ALTER TABLE favs_new RENAME TO favs"))
+		  (execute-query-tree '("INSERT INTO schema_updates (version, date)"
+								" VALUES (1, strftime('%s', 'now'))")))
+		(let ((version (vector-ref (find-min rset) 0)))
+		  #?=version)
+		)
+)
+
   'ok)
 
 (define-http-handler "/admin/setup"
