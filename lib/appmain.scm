@@ -164,23 +164,32 @@
   `(span (@ (class "icon"))
          (i (@ (class ,#"fas fa-~name")) "")))
 
+(define (get-owned-proc await user-id game-ids)
+  (define (id-list ids)
+	(string-join (map x->string game-ids) ", "))
+  (let ((owned-games
+		 (map (^[row] (vector-ref row 0))
+			  (dbi-do *sqlite-conn*
+					  #`"SELECT game_id FROM favs WHERE user_id = ? AND game_id IN (,(id-list game-ids))"
+					  '() user-id))))
+	(lambda (game-id)
+	  (find (^x (eq? game-id x)) owned-games))))
+
 (define (search-games await user-id search-key)
   (let-values (((status header body)
                 (http-post "api.igdb.com"
                            "/v4/games/"
-                           #"search \"~search-key\"; fields id,alternative_names,name,url;"
+                           #"search \"~search-key\"; fields id; limit 12;"
                            :client-id twitch-clinet-id
                            :authorization #"Bearer ~twitch-access-token"
                            :secure #t
                            )))
     `(,(search-input search-key)
       ,(if (equal? status "200")
-           (let ((json (parse-json-string body)))
-             `(table (@ (class "table"))
-                      (tr (th "名前") (td ""))
-                      ,(vector->list
-                        (vector-map (search-result-entry await user-id search-key)
-                                    json))))
+           (let* ((json (parse-json-string body))
+				  (game-ids (vector->list (vector-map (^x (cdr (assoc "id" x))) json))))
+			 (render-games-in-tile await game-ids
+								   (get-owned-proc await user-id game-ids) user-id))
            `("ERROR"
              (pre ,body))))))
 
@@ -417,6 +426,7 @@
   (define owned?
     (cond ((pair? owneds)
            (lambda (game-id) (cdr (assq game-id owneds))))
+		  ((procedure? owneds) owneds)
           (owneds
            (lambda (game-id) #t))
           (else
@@ -478,7 +488,7 @@
                (game-id (cdr (assoc "game" json))))
           (dbi-do *sqlite-conn*
                   "INSERT OR IGNORE INTO favs (game_id, user_id) VALUES (?, ?)"
-                  '() #?=game-id #?=user-id)
+                  '() game-id user-id)
           (dbi-do *sqlite-conn*
                   "INSERT OR REPLACE INTO games (game_id, added_at) VALUES (?, strftime('%s', 'now'))"
                   '() game-id)
