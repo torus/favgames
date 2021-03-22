@@ -130,7 +130,7 @@
 (define (already-added-button)
   `(button (@ (type "button") (class "button is-primary text-nowrap")
               (disabled "disabled"))
-           "追加済み"))
+           ,(fas-icon "heart")))
 
 (define (add-button game-id user-id)
   (if user-id
@@ -139,10 +139,10 @@
                     (class "button is-primary text-nowrap")
                     (id ,button-id)
                     (onclick ,#"addGame(\"~game-id\", \"~button-id\")"))
-                 "おきにいりに追加"))
+                 ,(far-icon "heart")))
       `(button (@ (type "button") (class "button is-primary text-nowrap")
                   (disabled "disabled"))
-               "おきにいりに追加")))
+               ,(far-icon "heart"))))
 
 (define (search-result-entry await user-id search-key)
   (lambda (json)
@@ -155,14 +155,18 @@
                                   (class "button is-primary text-nowrap")
                                   (id ,button-id)
                                   (onclick ,#"addGame(\"~id\", \"~button-id\")"))
-                               "おきにいりに追加"))
+                               ,(far-icon "heart")))
                     `(button (@ (type "button") (class "button is-primary text-nowrap")
                                 (disabled "disabled"))
-                             "おきにいりに追加")))))))
+                             ,(far-icon "heart"))))))))
 
 (define (fas-icon name)
   `(span (@ (class "icon"))
          (i (@ (class ,#"fas fa-~name")) "")))
+
+(define (far-icon name)
+  `(span (@ (class "icon"))
+         (i (@ (class ,#"far fa-~name")) "")))
 
 (define (get-owned-proc await user-id game-ids)
   (define (id-list ids)

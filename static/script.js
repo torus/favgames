@@ -58,7 +58,13 @@ function addGame(gameId, buttonId) {
 
     ajax('POST', '/add', {game: gameId})
         .then(data => {
-            button.innerText = "追加済み"
+            button.innerText = ""
+			const icon = document.createElement("span")
+			icon.setAttribute("class", "icon")
+			const i = document.createElement("i")
+			i.setAttribute("class", "far fa-heart")
+			icon.append(i)
+			button.append(icon)
         })
         .catch(err => {
             console.log("ERROR", err)
